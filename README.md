@@ -1,31 +1,31 @@
-# poolmind
+# poolmind — Cybersecurity Resource Pool
 
-a place to save all the stuff you learn. links, articles, videos, tools — anything you find useful. poolmind saves it, organizes it, and helps you find it later.
+**poolmind** is a personal knowledge base for cybersecurity professionals, researchers, and learners. It helps you **collect, organize, enrich, search, and rediscover** cybersecurity resources — articles, tools, writeups, books, courses, CTFs, videos, and anything else you find useful.
 
-## what it does
+---
 
-- save a link, it grabs the title and summary
-- tag things by domain, type, skill level
-- search by keyword or just describe what you need
-- bulk import from your bookmarks, notes, whatever
-- sync to Notion or Obsidian if you use those
-- dashboard shows what you got, what's untouched, what needs attention
+## Features
 
-## how it runs
+- **Smart ingestion** — paste any URL; poolmind auto-extracts title, summary, tags, domain, type, skill level via heuristics + optional AI
+- **Full-text search** — FTS5 across titles, summaries, tags, notes, with AI-powered natural language query support
+- **Bulk import** — ingest from files, bookmarks, clipboard — auto-detects 9 input formats (URLs, markdown links, CSV, etc.)
+- **Learning management** — track consumption state per resource (saved → skimmed → studied → mastered → applied), rate 1-10, add notes/tags
+- **AI enrichment** — optional AI for classification, summarization, tag generation, quality scoring, gap analysis, learning paths, tech stacks, daily briefings
+- **Intelligence** — generate AI-curated learning paths and tech stacks from your existing pool
+- **Smart Trash Bin** — soft delete with restore, undo toast (10s window), bulk purge, nuke with backup, URL conflict detection on restore
+- **Auto-purge** — configurable automatic cleanup of expired trash via scheduler
+- **Duplicate detection** — fuzzy title matching via rapidfuzz
+- **Dead link checker** — HEAD-check stale resources, capture Wayback Machine URLs
+- **Obsidian sync** — each resource becomes a markdown note with YAML frontmatter + Dataview queries
+- **Notion sync** — one-way push to a Notion database dashboard
+- **Export** — Anki CSV decks, static HTML site, D3.js interactive graph, Obsidian wiki-link graph
+- **Self-adapting prompts** — AI prompts evolve based on success rates and user corrections
+- **REST API** — 50+ JSON endpoints for every operation
+- **Full audit trail** — every add, edit, trash, restore, purge is logged
 
-poolmind uses [freellmapi](https://github.com/tashfeenahmed/freellmapi) for AI stuff — summarising, classifying, search, all that. freellmapi is a free proxy that talks to google gemini, groq, cerebras, and a bunch of other free AI providers. big thanks to tashfeenahmed for making it.
+---
 
-you clone freellmapi inside poolmind like this:
-
-```
-git clone https://github.com/tashfeenahmed/freellmapi.git
-cd freellmapi
-npm install
-```
-
-see [SETUP.md](SETUP.md) for the full walkthrough.
-
-## quick start
+## Quick Start
 
 ```
 git clone https://github.com/itzneel05/poolmind.git
@@ -34,26 +34,34 @@ python -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements.txt
 cp .env.example .env
-```
-
-then set up freellmapi (instructions above), add your API keys at http://localhost:5173, put the unified key in `.env`, and run:
-
-```
 python -m app.webui
 ```
 
-open http://localhost:5000
+Open **http://localhost:5000**
 
-## stack
+For AI features, poolmind uses [freellmapi](https://github.com/tashfeenahmed/freellmapi) — a free AI proxy that aggregates 16+ LLM providers:
+```
+git clone https://github.com/tashfeenahmed/freellmapi.git
+cd freellmapi && npm install && npm run dev
+```
 
-- python / flask
-- sqlite
-- htmx + vanilla js
-- freellmapi (ai proxy)
+See [SETUP.md](SETUP.md) for the full walkthrough.
 
-## docs
+---
+
+## Stack
+
+- **Backend**: Python / Flask
+- **Database**: SQLite + FTS5
+- **Frontend**: HTMX + vanilla JS
+- **AI Proxy**: freellmapi (Google Gemini, Groq, Cerebras, OpenRouter, 13+ more)
+- **AI Models**: optional — OpenAI, Ollama, or any OpenAI-compatible endpoint
+
+---
+
+## Docs
 
 - [SETUP.md](SETUP.md) — everything you need to get running
-- [USAGE.md](USAGE.md) — api endpoints and cli commands
-- [GUIDE.md](GUIDE.md) — tour of the web ui
+- [USAGE.md](USAGE.md) — API endpoints and CLI commands
+- [GUIDE.md](GUIDE.md) — tour of the web UI
 - [ARCHITECTURE.md](ARCHITECTURE.md) — how it all fits together

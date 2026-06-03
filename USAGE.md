@@ -210,11 +210,59 @@ pool note a1b2c3d4 "Excellent explanation of JWT attacks — revisit before pent
 Increment usage counter.
 
 ### `pool archive <id> [--hard]`
-Soft-delete (archive) or hard-delete.
+Legacy soft-delete (sets consumption_state to 'archived') or hard-delete.
 
 ```
-pool archive a1b2c3d4           # soft (restorable)
+pool archive a1b2c3d4           # soft (legacy)
 pool archive a1b2c3d4 --hard    # permanent
+```
+
+### `pool trash <id> [--reason] [--no-obsidian] [--no-notion]`
+Soft-delete — moves resource to the Smart Trash Bin. Restorable.
+
+```
+pool trash a1b2c3d4
+pool trash a1b2c3d4 --reason "Duplicate of a2b3c4d5"
+pool trash a1b2c3d4 --no-obsidian --no-notion
+```
+
+### `pool restore <id> [--force] [--no-obsidian] [--no-notion]`
+Restore a trashed resource back to the active pool.
+
+```
+pool restore a1b2c3d4
+pool restore a1b2c3d4 --force    # skip URL conflict check
+```
+
+### `pool purge <id> [--no-obsidian]`
+Permanently delete a single trashed resource (with confirmation).
+
+```
+pool purge a1b2c3d4
+```
+
+### `pool trashed [--search] [--domain] [--limit]`
+List all trashed resources with optional search and domain filter.
+
+```
+pool trashed
+pool trashed --search "ssrf"
+pool trashed --domain web --limit 5
+```
+
+### `pool nuke`
+Permanently delete ALL trashed resources. Requires typing "NUKE" to confirm. Creates automatic JSON backup.
+
+```
+pool nuke
+```
+
+### `pool auto-purge [--dry-run]`
+Purge expired trashed resources based on auto-purge settings (configured in Settings page).
+
+```
+pool auto-purge
+pool auto-purge --dry-run    # preview without deleting
 ```
 
 ### `pool path <goal>`
@@ -329,7 +377,7 @@ Output includes: stats bar, domain/state breakdown, random pick, full resource g
 
 ## REST API
 
-poolmind exposes a full REST API with ~50 endpoints under `/api/`. All return JSON.
+poolmind exposes a full REST API with ~60 endpoints under `/api/`. All return JSON.
 
 ### Resources
 
@@ -354,6 +402,19 @@ poolmind exposes a full REST API with ~50 endpoints under `/api/`. All return JS
 | POST | `/api/resource/<id>/correct` | `{"field", "old", "new"}` |
 | POST | `/api/resource/<id>/sync` | Force Notion sync |
 | POST | `/api/resource/<id>/re-extract` | Re-run extraction |
+
+### Trash
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/trash` | List trashed resources (query: `search`, `domain`, `sort`, `limit`, `offset`) |
+| GET | `/api/trash/stats` | Trash statistics (total, oldest, expiring, by domain) |
+| POST | `/api/trash` | Trash resources `{"ids": [...], "reason": "..."}` |
+| POST | `/api/trash/restore` | Restore resources `{"ids": [...]}` |
+| POST | `/api/trash/restore/check` | Check for URL conflicts before restore `{"ids": [...]}` |
+| POST | `/api/trash/purge` | Permanently delete `{"ids": [...]}` (auto-backup created) |
+| POST | `/api/trash/nuke` | Delete all trashed `{"confirmation": "NUKE"}` (auto-backup created) |
+| POST | `/api/trash/empty-expired` | Purge expired trash |
 
 ### Browse & Search
 
@@ -692,7 +753,13 @@ Responses are cached by input hash in SQLite — identical requests skip API cal
 | `state` | Update consumption state |
 | `tag` | Add tags |
 | `correct` | Log AI field correction |
-| `archive` | Soft/hard delete |
+| `archive` | Legacy soft/hard delete |
+| `trash` | Soft delete to trash bin |
+| `restore` | Restore from trash |
+| `purge` | Permanently delete trashed resource |
+| `trashed` | List trashed resources |
+| `nuke` | Delete all trashed resources |
+| `auto-purge` | Purge expired trash |
 | `use` | Increment usage counter |
 | `path` | AI learning path |
 | `stack` | AI mission bundle |
@@ -742,7 +809,8 @@ poolmind/
 |   +-- ingest_router.py       Ingestion router
 |   +-- feedback_tracker.py    AI feedback + correction tracking
 |   +-- prompt_evolution.py    Self-adapting prompt evolution
-|   +-- api/                   REST API (~50 endpoints)
+|   +-- api/                   REST API (~60 endpoints)
+|   |   +-- trash.py           Trash bin endpoints
 |       +-- __init__.py        Blueprint registration hub
 |       +-- resources.py       CRUD + actions (14 endpoints)
 |       +-- ingest.py          Parse + run + SSE (3 endpoints)

@@ -194,7 +194,7 @@ Click any resource to see its **detail page**. It has two columns:
 | **Notes** | Write notes and click "Save note" |
 | **Mark used** | Increments the usage counter |
 | **Correct AI field** | Opens a modal to fix any AI-generated field |
-| **Archive** | Soft-deletes the resource |
+| **Trash** | Moves resource to trash bin (restorable, with undo toast) |
 
 ### Searching
 
@@ -240,6 +240,18 @@ See what areas your pool is missing:
 ### Audit Log
 
 Every action is recorded. Go to **"Maintenance > Audit log"** to see a timeline of adds, edits, archives, and syncs.
+
+### Smart Trash Bin
+
+Every deleted resource goes to the **Trash** — nothing is permanently lost until you choose to purge.
+
+1. **Move to trash**: Click the "Trash" button on any resource (detail page or list view), or use `pool trash <id>` from the CLI
+2. **Undo**: A toast appears with a 10-second "Undo" button — click to instantly restore
+3. **Browse trash**: Click **"Trash (N)"** in the nav bar to see all trashed items with search, filter, and sort
+4. **Restore**: Single click or bulk select → "Restore selected". URL conflict detection warns if the same URL exists in active resources
+5. **Purge**: Permanently delete individual items or bulk select → "Delete forever"
+6. **Nuke**: "Nuke all" wipes the entire trash — requires typing "NUKE" to confirm, creates an automatic JSON backup
+7. **Auto-purge**: Enable in Settings → auto-purge expired trash during scheduled maintenance
 
 ### Find Duplicates
 
@@ -336,7 +348,13 @@ pool <command>
 | `pool note <id> "text"` | Add a note |
 | `pool use <id>` | Mark as used |
 | `pool correct <id> --field type --new article` | Correct an AI field |
-| `pool archive <id>` | Soft-delete |
+| `pool archive <id>` | Legacy soft-delete |
+| `pool trash <id>` | Soft delete to trash bin |
+| `pool restore <id>` | Restore from trash |
+| `pool purge <id>` | Permanently delete trashed |
+| `pool trashed` | List trashed resources |
+| `pool nuke` | Empty trash (with confirmation) |
+| `pool auto-purge` | Purge expired trash |
 | `pool path "goal"` | Generate a learning path |
 | `pool stack "mission"` | Generate a tech stack |
 | `pool gap` | Run gap analysis |
