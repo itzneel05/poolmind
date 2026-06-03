@@ -59,9 +59,15 @@ See [SETUP.md](SETUP.md) for the full walkthrough.
 
 ---
 
+> **Personal note:** This project isn't perfect — there might be lots of bugs and things that break. If you find any, please contact me and I'll be happy to fix them. I'm also open to any ideas or anything that makes this more useful. Feel free to reach out anytime.
+
 ## Docs
 
 - [SETUP.md](SETUP.md) — everything you need to get running
 - [USAGE.md](USAGE.md) — API endpoints and CLI commands
 - [GUIDE.md](GUIDE.md) — tour of the web UI
 - [ARCHITECTURE.md](ARCHITECTURE.md) — how it all fits together
+
+---
+
+> **Disclaimer:** This is a personal project built for my own learning and experimentation, not a product. It exists as a portfolio piece and a practical tool for organizing cybersecurity research. There is no warranty, no SLA, no support commitment, and no guarantee that the code is secure, correct, or suitable for any purpose. If you choose to run it yourself, that's your call — you're responsible for your own data and your own security.
