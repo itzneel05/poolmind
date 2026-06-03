@@ -186,31 +186,14 @@ def add_from_url(
             mirror_urls = [wayback]
     extracted["mirror_urls"] = mirror_urls
 
-    if not ai_disabled and extracted.get("ai_enriched"):
-        pool_titles = [r["title"] for r in db.get_all_titles_and_ids()]
-        if pool_titles:
-            related_result = ai_related(
-                resource_title=extracted.get("title", ""),
-                resource_domain=extracted.get("domain", "general"),
-                pool_titles=pool_titles,
-            )
-            if related_result:
-                related_titles = related_result.get("related_titles", [])
-                related_ids = _resolve_titles_to_ids(related_titles)
-                extracted["related_resources"] = related_ids
-
-                next_title = related_result.get("next_step_title")
-                if next_title:
-                    next_ids = _resolve_titles_to_ids([next_title])
-                    if next_ids:
-                        extracted["next_step_resource"] = next_ids[0]
-
     if notes:
         extracted["notes"] = notes
 
     extracted["ai_confidence"] = ai_confidence
     extracted["ai_disabled"] = ai_disabled
     extracted["added_by"] = "user"
+    extracted["enrichment_status"] = "pending" if needs_ai else "complete"
+    extracted["ai_enriched"] = not needs_ai
 
     extracted = _enforce_summary(
         extracted, title=extracted.get("title", ""), url=url, body_text=body_text
@@ -228,22 +211,12 @@ def add_from_url(
         )
 
     db.insert_resource(resource)
-    logger.info("Saved resource %s to DB", resource.id)
+    logger.info("Saved resource %s to DB (fast path)", resource.id)
 
-    if (
-        not skip_obsidian
-        and os.getenv("OBSIDIAN_SYNC_ENABLED", "true").lower() == "true"
-    ):
-        try:
-            obsidian_writer.write_note(resource)
-        except Exception as e:
-            logger.error("Obsidian write failed for %s: %s", resource.id, e)
+    if needs_ai:
+        from app.background import submit_enrichment
 
-    if not skip_notion and os.getenv("NOTION_SYNC_ENABLED", "true").lower() == "true":
-        try:
-            notion_sync.sync_resource(resource)
-        except Exception as e:
-            logger.error("Notion sync failed for %s: %s", resource.id, e)
+        submit_enrichment(resource)
 
     return resource
 

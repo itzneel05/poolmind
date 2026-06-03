@@ -72,6 +72,8 @@ CREATE TABLE IF NOT EXISTS resources (
     notion_page_id        TEXT,
     notion_last_synced    TEXT,
 
+    enrichment_status     TEXT DEFAULT 'pending',
+
     -- Trash support
     deleted_at            TEXT,
     deleted_reason        TEXT,

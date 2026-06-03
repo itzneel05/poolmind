@@ -28,6 +28,7 @@ def create_app() -> Flask:
     register_blueprints(app)
 
     db._ensure_trash_columns()
+    db._ensure_enrichment_column()
 
     @app.context_processor
     def inject_globals():

@@ -147,6 +147,7 @@
           {% if resource.quality_score %}<tr><td>Quality</td><td>{{ resource.quality_score }}/10</td></tr>{% endif %}
           {% if resource.ai_confidence %}<tr><td>AI conf</td><td class="mono">{{ resource.ai_confidence }}%</td></tr>{% endif %}
           <tr><td>Used</td><td class="mono">{{ resource.times_used }}x</td></tr>
+          <tr><td>Enrich</td><td>{% if resource.enrichment_status == 'pending' or resource.enrichment_status == 'in_progress' %}<span class="state-badge warn">AI enriching...</span>{% elif resource.enrichment_status == 'failed' %}<span class="state-badge" style="background:var(--danger)">FAILED</span>{% else %}<span class="state-badge ok">complete</span>{% endif %}</td></tr>
           <tr><td>Added</td><td class="faint">{{ resource.added_on[:10] }}</td></tr>
           <tr><td>Source</td><td>{{ resource.source_platform }}</td></tr>
         </table>

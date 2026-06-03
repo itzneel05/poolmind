@@ -382,6 +382,8 @@ details.form-section summary {
 .state-badge.studied { color: var(--warning); }
 .state-badge.mastered { color: var(--success); }
 .state-badge.applied { color: #2dd4bf; }
+.state-badge.ok { color: var(--success); }
+.state-badge.warn { color: var(--warning); }
 
 /* ── Section Dividers ── */
 

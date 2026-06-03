@@ -57,7 +57,10 @@
         <td>{{ r.skill_level }}</td>
         <td class="num mono">{{ r.quality_score or '-' }}</td>
         <td><span class="state-badge {{ r.consumption_state }}">{{ r.consumption_state }}</span></td>
-        <td onclick="event.stopPropagation()"><button class="btn btn-ghost" style="color:var(--danger);font-size:var(--text-xs);padding:2px 6px" onclick="trashFromList('{{ r.id }}')">Trash</button></td>
+        <td onclick="event.stopPropagation()" style="white-space:nowrap">
+          {% if r.enrichment_status == 'pending' or r.enrichment_status == 'in_progress' %}<span class="state-badge warn" style="font-size:var(--text-xs)">AI...</span>{% endif %}
+          <button class="btn btn-ghost" style="color:var(--danger);font-size:var(--text-xs);padding:2px 6px" onclick="trashFromList('{{ r.id }}')">Trash</button>
+        </td>
       </tr>
       {% else %}
       <tr><td colspan="8" class="empty-cell">No resources found.</td></tr>

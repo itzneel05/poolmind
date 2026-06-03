@@ -91,6 +91,9 @@ class Resource(BaseModel):
     # ── Extended Metadata (type-specific, stored as JSON in DB) ───────────
     extended_meta: dict = Field(default_factory=dict)
 
+    # ── Background Enrichment ─────────────────────────────────────────────
+    enrichment_status: str = "pending"
+
     # ── Schema Version ────────────────────────────────────────────────────
     schema_version: str = "1.0"
 

@@ -41,6 +41,49 @@ def get_conn() -> Generator[sqlite3.Connection, None, None]:
 # ── Trash ──────────────────────────────────────────────────────────────────
 
 
+def _ensure_enrichment_column():
+    """Add enrichment_status column to existing databases."""
+    try:
+        with get_conn() as conn:
+            conn.execute(
+                "ALTER TABLE resources ADD COLUMN enrichment_status TEXT DEFAULT 'pending'"
+            )
+    except Exception:
+        pass
+
+
+def _set_enrichment_status(resource_id: str, status: str):
+    with get_conn() as conn:
+        conn.execute(
+            "UPDATE resources SET enrichment_status = ?, updated_at = ? WHERE id = ?",
+            [status, datetime.now().isoformat(), resource_id],
+        )
+
+
+def _update_resource_fields(resource_id: str, fields: dict):
+    if not fields:
+        return
+    sets = []
+    vals = []
+    for key, val in fields.items():
+        if isinstance(val, list):
+            sets.append(f"{key} = ?")
+            vals.append(",".join(str(v) for v in val))
+        elif val is not None:
+            sets.append(f"{key} = ?")
+            vals.append(str(val))
+    if not sets:
+        return
+    sets.append("updated_at = ?")
+    vals.append(datetime.now().isoformat())
+    vals.append(resource_id)
+    with get_conn() as conn:
+        conn.execute(
+            f"UPDATE resources SET {', '.join(sets)} WHERE id = ?",
+            vals,
+        )
+
+
 def _ensure_trash_columns():
     """Add trash columns to existing databases (safe to run repeatedly)."""
     cols = [
