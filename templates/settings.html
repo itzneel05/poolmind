@@ -93,6 +93,23 @@
     <div id="notion-test-result" style="display:none;margin-top:8px"></div>
   </div>
 
+  <div class="section-divider"><span>AUTO-PURGE</span></div>
+  <div class="card" style="margin-bottom:16px">
+    <p class="faint">Automatically purge trashed resources after a set number of days. Runs during scheduled maintenance.</p>
+    <div style="display:flex;gap:12px;align-items:center;margin-top:12px;flex-wrap:wrap">
+      <label class="checkbox-label" style="margin:0">
+        <input type="checkbox" id="auto-purge-toggle" {% if config.get('auto_purge_enabled') == 'true' %}checked{% endif %} onchange="toggleAutoPurge()">
+        Enable auto-purge
+      </label>
+      <div style="display:flex;align-items:center;gap:8px">
+        <label class="faint" style="font-size:var(--text-sm)">Purge after</label>
+        <input type="number" id="auto-purge-days" class="form-input" style="width:80px" value="{{ config.get('auto_purge_days', '30') }}" onchange="saveAutoPurgeDays()">
+        <span class="faint" style="font-size:var(--text-sm)">days</span>
+      </div>
+    </div>
+    <div id="auto-purge-result" style="display:none;margin-top:8px"></div>
+  </div>
+
   <div class="section-divider"><span>DATA</span></div>
   <div class="card">
     <p class="faint">Database and resource operations.</p>
@@ -227,6 +244,40 @@ function testNotion() {
       result.innerHTML = '<div class="step fail">[FAIL] ' + e.message + '</div>';
     });
 }
+function toggleAutoPurge() {
+  var enabled = document.getElementById('auto-purge-toggle').checked;
+  var result = document.getElementById('auto-purge-result');
+  fetch('/api/settings', {
+    method: 'PATCH',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({key: 'auto_purge_enabled', value: enabled ? 'true' : 'false'})
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    result.innerHTML = '<div class="step ok">[OK] Auto-purge ' + (enabled ? 'enabled' : 'disabled') + '</div>';
+    result.style.display = 'block';
+    setTimeout(function() { result.style.display = 'none'; }, 2000);
+  }).catch(function(e) {
+    result.innerHTML = '<div class="step fail">[FAIL] ' + e.message + '</div>';
+    result.style.display = 'block';
+  });
+}
+
+function saveAutoPurgeDays() {
+  var days = document.getElementById('auto-purge-days').value;
+  var result = document.getElementById('auto-purge-result');
+  fetch('/api/settings', {
+    method: 'PATCH',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({key: 'auto_purge_days', value: days})
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    result.innerHTML = '<div class="step ok">[OK] Auto-purge days set to ' + days + '</div>';
+    result.style.display = 'block';
+    setTimeout(function() { result.style.display = 'none'; }, 2000);
+  }).catch(function(e) {
+    result.innerHTML = '<div class="step fail">[FAIL] ' + e.message + '</div>';
+    result.style.display = 'block';
+  });
+}
+
 function exportData() {
   window.location.href = '/api/resources?limit=9999';
 }

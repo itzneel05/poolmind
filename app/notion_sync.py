@@ -54,6 +54,42 @@ def _load_property_map() -> dict:
         return {}
 
 
+def archive_resource(notion_page_id: str) -> bool:
+    """Archive a Notion page (move to trash in Notion)."""
+    if not os.getenv("NOTION_SYNC_ENABLED", "true").lower() == "true":
+        return False
+    try:
+        _get_token()
+    except ValueError:
+        return False
+    time.sleep(RATE_LIMIT_SLEEP)
+    resp = requests.patch(
+        f"https://api.notion.com/v1/pages/{notion_page_id}",
+        headers=_headers(),
+        json={"archived": True},
+        timeout=30,
+    )
+    return resp.status_code == 200
+
+
+def unarchive_resource(notion_page_id: str) -> bool:
+    """Unarchive a Notion page (restore from trash in Notion)."""
+    if not os.getenv("NOTION_SYNC_ENABLED", "true").lower() == "true":
+        return False
+    try:
+        _get_token()
+    except ValueError:
+        return False
+    time.sleep(RATE_LIMIT_SLEEP)
+    resp = requests.patch(
+        f"https://api.notion.com/v1/pages/{notion_page_id}",
+        headers=_headers(),
+        json={"archived": False},
+        timeout=30,
+    )
+    return resp.status_code == 200
+
+
 def sync_resource(resource: Resource) -> Optional[str]:
     if not os.getenv("NOTION_SYNC_ENABLED", "true").lower() == "true":
         return None

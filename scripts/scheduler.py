@@ -26,6 +26,7 @@ logger = logging.getLogger(__name__)
 
 
 def run_all(auto_tombstone: bool = False):
+    from app import db
     from app.audit import dead_check, get_low_confidence_resources
 
     logger.info("Starting scheduled maintenance...")
@@ -39,6 +40,13 @@ def run_all(auto_tombstone: bool = False):
         len(dead["tombstoned"]),
         dead["skipped"],
     )
+
+    config = db.get_pool_config()
+    if config.get("auto_purge_enabled") == "true":
+        auto_purge_days = int(config.get("auto_purge_days", "30"))
+        result = db.purge_expired_trash()
+        if result["purged"] > 0:
+            logger.info("Auto-purge: removed %d expired items", result["purged"])
 
     low_conf = get_low_confidence_resources(threshold=70)
     if low_conf:

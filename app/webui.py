@@ -27,9 +27,14 @@ def create_app() -> Flask:
 
     register_blueprints(app)
 
+    db._ensure_trash_columns()
+
     @app.context_processor
     def inject_globals():
-        return {"ai_status_global": _get_ai_status()}
+        return {
+            "ai_status_global": _get_ai_status(),
+            "trash_count": db.get_trash_count(),
+        }
 
     # ── Dashboard ──
     @app.route("/")
@@ -366,6 +371,37 @@ def create_app() -> Flask:
         if q:
             results = search(query=q, domain=domain, type_=type_, limit=50)
         return render_template("search.html", query=q, results=results)
+
+    # ── Trash ──
+    @app.route("/trash")
+    def trash_page():
+        search_q = request.args.get("search") or None
+        domain = request.args.get("domain") or None
+        type_ = request.args.get("type") or None
+        sort = request.args.get("sort", "deleted_at")
+        page = int(request.args.get("page", 1))
+        limit = 50
+        offset = (page - 1) * limit
+        results = db.get_trashed_resources(
+            search_q=search_q,
+            domain=domain,
+            type_=type_,
+            sort=sort,
+            limit=limit,
+            offset=offset,
+        )
+        stats = db.get_trash_stats()
+        all_domains = [d["domain"] for d in stats["by_domain"]]
+        return render_template(
+            "trash.html",
+            resources=results,
+            stats=stats,
+            domains=all_domains,
+            current_domain=domain or "",
+            current_type=type_ or "",
+            search_q=search_q or "",
+            current_sort=sort,
+        )
 
     return app
 

@@ -30,6 +30,11 @@
       <span class="stat-label">low confidence</span>
       <span class="stat-badge {% if stats.low_confidence > 0 %}warn{% else %}ok{% endif %}">{% if stats.low_confidence > 0 %}[LOW]{% else %}[OK]{% endif %}</span>
     </div>
+    <div class="stat-card hud-card" onclick="window.location='/trash'" style="cursor:pointer">
+      <span class="stat-value mono">{{ stats.trashed }}</span>
+      <span class="stat-label">in trash</span>
+      <span class="stat-badge {% if stats.trashed > 0 %}warn{% else %}ok{% endif %}">{% if stats.trashed > 0 %}[TRASH]{% else %}[OK]{% endif %}</span>
+    </div>
   </div>
 
   <div class="section-divider"><span>SERVICES</span></div>

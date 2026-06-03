@@ -72,6 +72,13 @@ CREATE TABLE IF NOT EXISTS resources (
     notion_page_id        TEXT,
     notion_last_synced    TEXT,
 
+    -- Trash support
+    deleted_at            TEXT,
+    deleted_reason        TEXT,
+    deleted_by            TEXT DEFAULT 'user',
+    original_state        TEXT,
+    trash_expires_at      TEXT,
+
     created_at            TEXT DEFAULT (datetime('now')),
     updated_at            TEXT DEFAULT (datetime('now'))
 );
@@ -175,6 +182,7 @@ CREATE INDEX IF NOT EXISTS idx_resources_consumption ON resources(consumption_st
 CREATE INDEX IF NOT EXISTS idx_resources_added_on    ON resources(added_on);
 CREATE INDEX IF NOT EXISTS idx_resources_quality     ON resources(quality_score);
 CREATE INDEX IF NOT EXISTS idx_resources_platform    ON resources(source_platform);
+CREATE INDEX IF NOT EXISTS idx_resources_deleted_at  ON resources(deleted_at);
 CREATE INDEX IF NOT EXISTS idx_dead_links_resource   ON dead_links(resource_id);
 
 -- ─────────────────────────────────────────────────────────────────────

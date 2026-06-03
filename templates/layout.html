@@ -59,6 +59,7 @@
           </div>
         </div>
         <a href="/search" class="nav-item {% if request.path == '/search' %}active{% endif %}">Search</a>
+        <a href="/trash" class="nav-item {% if request.path == '/trash' %}active{% endif %}">Trash{% if trash_count > 0 %} ({{ trash_count }}){% endif %}</a>
         <a href="/settings" class="nav-item {% if request.path == '/settings' %}active{% endif %}">Settings</a>
       </div>
     </div>

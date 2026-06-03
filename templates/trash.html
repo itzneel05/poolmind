@@ -1,0 +1,347 @@
+{% extends "layout.html" %}
+{% block title %}— Trash{% endblock %}
+{% block content %}
+<header class="page-header">
+  <h1 class="page-title">Trash</h1>
+  <div class="page-actions">
+    <span class="mono faint">{{ stats.total }} items</span>
+    <button class="btn btn-secondary" onclick="emptyExpired()" {% if stats.expiring_soon == 0 %}disabled{% endif %}>Delete expired ({{ stats.expiring_soon }})</button>
+    <button class="btn btn-danger" onclick="showNukeModal()" {% if stats.total == 0 %}disabled{% endif %}>Nuke all</button>
+  </div>
+</header>
+
+<section class="page-content">
+  {% if stats.oldest %}
+  <div class="card" style="margin-bottom:16px;padding:var(--space-3) var(--space-4)">
+    <p class="faint" style="font-size:var(--text-sm)">
+      {{ stats.total }} items in trash &middot; Oldest: {{ stats.oldest[:10] }}
+      {% if stats.expiring_soon > 0 %}
+      &middot; <span class="stat-badge warn">{{ stats.expiring_soon }} expiring soon</span>
+      {% endif %}
+    </p>
+  </div>
+  {% endif %}
+
+  <div class="filter-bar">
+    <form method="get" action="/trash" class="search-bar" style="flex:1;margin:0">
+      <input type="text" name="search" value="{{ search_q }}" class="search-input-big" placeholder="Search trash..." style="flex:1">
+      <button type="submit" class="btn btn-primary">Search</button>
+    </form>
+    <select class="filter-select" name="domain" onchange="filterTrash()" id="domain-filter">
+      <option value="">All domains</option>
+      {% for d in domains %}
+      <option value="{{ d }}" {% if current_domain == d %}selected{% endif %}>{{ d }}</option>
+      {% endfor %}
+    </select>
+    <select class="filter-select" name="sort" onchange="filterTrash()" id="sort-filter">
+      <option value="deleted_at" {% if current_sort == 'deleted_at' %}selected{% endif %}>Newest trashed</option>
+      <option value="title" {% if current_sort == 'title' %}selected{% endif %}>Title A-Z</option>
+    </select>
+  </div>
+
+  {% if resources %}
+  <div style="margin-bottom:var(--space-3);display:flex;gap:var(--space-2);align-items:center">
+    <label class="checkbox-label" style="margin:0">
+      <input type="checkbox" id="select-all" onchange="toggleAll()">
+      Select all
+    </label>
+    <button class="btn btn-secondary" onclick="bulkRestore()" id="restore-btn" disabled>Restore selected</button>
+    <button class="btn btn-ghost" style="color:var(--danger)" onclick="bulkPurge()" id="purge-btn" disabled>Delete forever</button>
+  </div>
+
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th style="width:32px"></th>
+        <th>ID</th>
+        <th>Title</th>
+        <th>Domain</th>
+        <th>Type</th>
+        <th>Trashed</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in resources %}
+      <tr class="clickable-row" data-id="{{ r.id }}" onclick="rowClick(this, event)">
+        <td onclick="event.stopPropagation()"><input type="checkbox" class="row-checkbox" value="{{ r.id }}" onchange="updateBulkBtns()"></td>
+        <td class="mono faint">{{ r.id }}</td>
+        <td>
+          <div class="gem-title" style="font-size:var(--text-sm)">{{ r.title[:80] }}</div>
+          {% if r.deleted_reason %}
+          <div class="faint" style="font-size:var(--text-xs);margin-top:2px">"{{ r.deleted_reason }}"</div>
+          {% endif %}
+        </td>
+        <td>{{ r.domain }}</td>
+        <td><span class="type-chip {{ r.type }}">{{ r.type }}</span></td>
+        <td class="mono faint">{{ r.deleted_at[:10] if r.deleted_at else '' }}</td>
+        <td onclick="event.stopPropagation()">
+          <div style="display:flex;gap:var(--space-1)">
+            <button class="btn btn-ghost" onclick="restoreOne('{{ r.id }}')" title="Restore">Restore</button>
+            <button class="btn btn-ghost" style="color:var(--danger)" onclick="purgeOne('{{ r.id }}')" title="Delete forever">Delete</button>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state">
+    <div class="empty-icon" data-lucide="trash-2"></div>
+    <h2>Trash is empty</h2>
+    <p>Deleted resources will appear here. You can restore or permanently delete them.</p>
+  </div>
+  {% endif %}
+</section>
+
+<div class="modal-overlay" id="nuke-modal" style="display:none" onclick="closeNukeModal(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h2>Nuke Trash</h2>
+      <button class="modal-close" onclick="closeNukeModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p style="margin-bottom:var(--space-4);color:var(--text-secondary)">
+        Permanently delete <strong>{{ stats.total }}</strong> items from trash.
+        This cannot be undone. A backup will be saved.
+      </p>
+      <div class="card" style="margin-bottom:var(--space-4);border-color:var(--danger)">
+        <p class="mono faint" style="font-size:var(--text-xs)">
+          Backup: data/backups/trash_nuke_TIMESTAMP.json
+        </p>
+      </div>
+      <div class="form-group">
+        <label>Type NUKE to confirm</label>
+        <input type="text" id="nuke-confirm" class="form-input" placeholder="NUKE" oninput="checkNukeConfirm()">
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-secondary" onclick="closeNukeModal()">Cancel</button>
+        <button class="btn btn-danger" id="nuke-btn" onclick="executeNuke()" disabled>Nuke {{ stats.total }} items</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="conflict-modal" style="display:none" onclick="closeConflictModal(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h2>URL Conflict</h2>
+      <button class="modal-close" onclick="closeConflictModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p style="margin-bottom:var(--space-4);color:var(--text-secondary)">
+        Some trashed resources have the same URL as existing active resources.
+      </p>
+      <div id="conflict-list" style="margin-bottom:var(--space-4)"></div>
+      <div class="form-actions">
+        <button class="btn btn-secondary" onclick="closeConflictModal()">Cancel</button>
+        <button class="btn btn-primary" id="conflict-force-btn" onclick="executeForceRestore()">Restore anyway</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="purge-modal" style="display:none" onclick="closePurgeModal(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h2>Delete forever</h2>
+      <button class="modal-close" onclick="closePurgeModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p style="margin-bottom:var(--space-4);color:var(--text-secondary)">
+        Delete <strong id="purge-count">0</strong> item(s) permanently? Cannot be undone.
+      </p>
+      <div class="form-actions">
+        <button class="btn btn-secondary" onclick="closePurgeModal()">Cancel</button>
+        <button class="btn btn-danger" id="purge-confirm-btn" onclick="executePurge()">Delete forever</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+var pendingPurgeIds = [];
+var pendingRestoreIds = [];
+var pendingConflictForce = false;
+var undoTimeout = null;
+
+function filterTrash() {
+  var params = new URLSearchParams();
+  var search = document.querySelector('input[name="search"]').value;
+  var domain = document.getElementById('domain-filter').value;
+  var sort = document.getElementById('sort-filter').value;
+  if (search) params.set('search', search);
+  if (domain) params.set('domain', domain);
+  if (sort) params.set('sort', sort);
+  window.location = '/trash?' + params.toString();
+}
+
+function toggleAll() {
+  var checked = document.getElementById('select-all').checked;
+  document.querySelectorAll('.row-checkbox').forEach(function(cb) { cb.checked = checked; });
+  updateBulkBtns();
+}
+
+function updateBulkBtns() {
+  var checked = document.querySelectorAll('.row-checkbox:checked').length;
+  document.getElementById('restore-btn').disabled = checked === 0;
+  document.getElementById('purge-btn').disabled = checked === 0;
+}
+
+function getSelectedIds() {
+  var ids = [];
+  document.querySelectorAll('.row-checkbox:checked').forEach(function(cb) { ids.push(cb.value); });
+  return ids;
+}
+
+function rowClick(row, event) {
+  if (event.target.closest('button') || event.target.closest('input')) return;
+  var cb = row.querySelector('.row-checkbox');
+  if (cb) { cb.checked = !cb.checked; updateBulkBtns(); }
+}
+
+function bulkRestore() {
+  var ids = getSelectedIds();
+  if (!ids.length) return;
+  fetch('/api/trash/restore/check', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ids: ids})
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    if (d.conflicts && d.conflicts.length > 0) {
+      pendingRestoreIds = ids;
+      showConflictModal(d.conflicts);
+      return;
+    }
+    executeRestore(ids);
+  });
+}
+
+function executeRestore(ids) {
+  fetch('/api/trash/restore', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ids: ids, force: true})
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    if (d.error) { toast(d.error, 'error'); return; }
+    toast('Restored ' + (d.restored || 0) + ' items', 'success');
+    setTimeout(function() { window.location.reload(); }, 500);
+  });
+}
+
+function showConflictModal(conflicts) {
+  var list = document.getElementById('conflict-list');
+  list.innerHTML = '';
+  conflicts.forEach(function(c) {
+    var el = document.createElement('div');
+    el.className = 'card';
+    el.style.cssText = 'margin-bottom:8px;padding:12px';
+    el.innerHTML = '<div style="font-size:var(--text-xs)"><span class="mono faint">[' + c.existing_id + ']</span> ' + c.existing_title + '</div><div class="mono faint" style="font-size:var(--text-xs);margin-top:4px">' + c.url + '</div><div style="font-size:var(--text-xs);margin-top:4px;color:var(--danger)">Conflict with: [' + c.trashed_id + '] (being restored)</div>';
+    list.appendChild(el);
+  });
+  document.getElementById('conflict-force-btn').dataset.ids = JSON.stringify(conflicts.map(function(c) { return c.trashed_id; }));
+  document.getElementById('conflict-modal').style.display = 'flex';
+}
+
+function closeConflictModal(e) {
+  if (e && e.target !== e.currentTarget) return;
+  document.getElementById('conflict-modal').style.display = 'none';
+  pendingRestoreIds = [];
+}
+
+function executeForceRestore() {
+  var ids = pendingRestoreIds.length ? pendingRestoreIds : JSON.parse(document.getElementById('conflict-force-btn').dataset.ids);
+  document.getElementById('conflict-modal').style.display = 'none';
+  executeRestore(ids);
+  pendingRestoreIds = [];
+}
+
+function bulkPurge() {
+  pendingPurgeIds = getSelectedIds();
+  if (!pendingPurgeIds.length) return;
+  document.getElementById('purge-count').textContent = pendingPurgeIds.length;
+  document.getElementById('purge-modal').style.display = 'flex';
+}
+
+function closePurgeModal(e) {
+  if (e && e.target !== e.currentTarget) return;
+  document.getElementById('purge-modal').style.display = 'none';
+  pendingPurgeIds = [];
+}
+
+function executePurge() {
+  var ids = pendingPurgeIds;
+  document.getElementById('purge-modal').style.display = 'none';
+  fetch('/api/trash/purge', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ids: ids})
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    toast('Purged ' + (d.purged || 0) + ' items', 'error');
+    setTimeout(function() { window.location.reload(); }, 500);
+  });
+}
+
+function restoreOne(id) {
+  fetch('/api/trash/restore/check', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ids: [id]})
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    if (d.conflicts && d.conflicts.length > 0) {
+      pendingRestoreIds = [id];
+      showConflictModal(d.conflicts);
+      return;
+    }
+    executeRestore([id]);
+  });
+}
+
+function purgeOne(id) {
+  pendingPurgeIds = [id];
+  document.getElementById('purge-count').textContent = '1';
+  document.getElementById('purge-modal').style.display = 'flex';
+}
+
+function showNukeModal() {
+  document.getElementById('nuke-confirm').value = '';
+  document.getElementById('nuke-btn').disabled = true;
+  document.getElementById('nuke-modal').style.display = 'flex';
+}
+
+function closeNukeModal(e) {
+  if (e && e.target !== e.currentTarget) return;
+  document.getElementById('nuke-modal').style.display = 'none';
+}
+
+function checkNukeConfirm() {
+  var val = document.getElementById('nuke-confirm').value;
+  document.getElementById('nuke-btn').disabled = val !== 'NUKE';
+}
+
+function executeNuke() {
+  fetch('/api/trash/nuke', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({confirmation: 'NUKE'})
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    if (d.error) { toast(d.error, 'error'); return; }
+    document.getElementById('nuke-modal').style.display = 'none';
+    toast('Nuked ' + (d.nuked || 0) + ' items. Backup saved.', 'error');
+    setTimeout(function() { window.location.reload(); }, 500);
+  });
+}
+
+function emptyExpired() {
+  fetch('/api/trash/empty-expired', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'}
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    toast('Purged ' + (d.purged || 0) + ' expired items', 'error');
+    setTimeout(function() { window.location.reload(); }, 500);
+  });
+}
+</script>
+{% endblock %}

@@ -16,6 +16,7 @@ def register_blueprints(app):
     from app.api.maintenance import maintenance_bp
     from app.api.ai_prompts import ai_bp
     from app.api.settings import settings_bp
+    from app.api.trash import trash_bp
 
     app.register_blueprint(resources_bp)
     app.register_blueprint(ingest_bp)
@@ -25,4 +26,5 @@ def register_blueprints(app):
     app.register_blueprint(maintenance_bp)
     app.register_blueprint(ai_bp)
     app.register_blueprint(settings_bp)
+    app.register_blueprint(trash_bp)
     app.register_blueprint(api)

@@ -44,6 +44,7 @@
         <th>Level</th>
         <th class="num">Q</th>
         <th>State</th>
+        <th></th>
       </tr>
     </thead>
     <tbody>
@@ -56,11 +57,56 @@
         <td>{{ r.skill_level }}</td>
         <td class="num mono">{{ r.quality_score or '-' }}</td>
         <td><span class="state-badge {{ r.consumption_state }}">{{ r.consumption_state }}</span></td>
+        <td onclick="event.stopPropagation()"><button class="btn btn-ghost" style="color:var(--danger);font-size:var(--text-xs);padding:2px 6px" onclick="trashFromList('{{ r.id }}')">Trash</button></td>
       </tr>
       {% else %}
-      <tr><td colspan="7" class="empty-cell">No resources found.</td></tr>
+      <tr><td colspan="8" class="empty-cell">No resources found.</td></tr>
       {% endfor %}
     </tbody>
   </table>
 </section>
+{% block scripts %}
+<script>
+var undoActions = {};
+function trashFromList(id) {
+  fetch('/api/trash', {
+    method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ids: [id], reason: 'Trashed from list view'})
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    if (d.error) { toast(d.error, 'error'); return; }
+    showUndoToastList('Resource trashed', 'restore', id);
+    var row = document.querySelector('tr[onclick*="/resource/' + id + '"]');
+    if (row) row.style.opacity = '0.3';
+  }).catch(function(e) { toast(e.message, 'error'); });
+}
+
+function showUndoToastList(msg, action, id) {
+  var t = document.getElementById('toast');
+  var el = document.createElement('div');
+  el.className = 'toast toast-undo';
+  var undoKey = action + '-' + id + '-' + Date.now();
+  undoActions[undoKey] = {action: action, id: id};
+  el.innerHTML = '<span>' + msg + '</span> <button class="toast-undo-btn" data-undo="' + undoKey + '">Undo</button>';
+  el.querySelector('.toast-undo-btn').onclick = function() {
+    var key = this.dataset.undo;
+    var ua = undoActions[key];
+    if (!ua) return;
+    if (ua.action === 'restore') {
+      fetch('/api/trash/restore', {
+        method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ids: [ua.id]})
+      }).then(function(r) { return r.json(); }).then(function(u) {
+        if (u.restored > 0) {
+          toast('Restored!', 'success');
+          var row = document.querySelector('tr[onclick*="/resource/' + ua.id + '"]');
+          if (row) row.style.opacity = '1';
+        } else { toast('Could not restore', 'error'); }
+      });
+    }
+    delete undoActions[key];
+    el.remove();
+  };
+  t.appendChild(el);
+  setTimeout(function() { el.remove(); delete undoActions[undoKey]; }, 10000);
+}
+</script>
+{% endblock %}
 {% endblock %}

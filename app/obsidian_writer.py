@@ -55,6 +55,53 @@ def delete_note(resource: Resource) -> bool:
     return False
 
 
+def delete_note_by_id(resource_id: str) -> bool:
+    """Delete an Obsidian note by resource ID (searches Resources/ and Trash/)."""
+    for folder in (get_resource_folder(), get_trash_folder()):
+        if not folder.exists():
+            continue
+        for f in folder.iterdir():
+            if f.is_file() and f.name.startswith(f"resource-{resource_id}-"):
+                f.unlink()
+                logger.info("Deleted Obsidian note: %s", f.name)
+                return True
+    return False
+
+
+def get_trash_folder() -> Path:
+    return get_vault_path() / "Trash"
+
+
+def move_note_to_trash(resource_id: str) -> bool:
+    """Move a resource note from Resources/ to Trash/."""
+    src_folder = get_resource_folder()
+    dst_folder = get_trash_folder()
+    dst_folder.mkdir(parents=True, exist_ok=True)
+    for f in src_folder.iterdir():
+        if f.is_file() and f.name.startswith(f"resource-{resource_id}-"):
+            dst_path = dst_folder / f.name
+            f.rename(dst_path)
+            logger.info("Moved Obsidian note to Trash: %s", f.name)
+            return True
+    return False
+
+
+def restore_note_from_trash(resource_id: str) -> bool:
+    """Move a resource note from Trash/ back to Resources/."""
+    src_folder = get_trash_folder()
+    dst_folder = get_resource_folder()
+    dst_folder.mkdir(parents=True, exist_ok=True)
+    if not src_folder.exists():
+        return False
+    for f in src_folder.iterdir():
+        if f.is_file() and f.name.startswith(f"resource-{resource_id}-"):
+            dst_path = dst_folder / f.name
+            f.rename(dst_path)
+            logger.info("Restored Obsidian note from Trash: %s", f.name)
+            return True
+    return False
+
+
 def _render_note(resource: Resource) -> str:
     tags_yaml = (
         "\n".join(f"  - {t}" for t in resource.tags) if resource.tags else "  []"

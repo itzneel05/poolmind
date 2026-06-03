@@ -15,6 +15,12 @@ from rich.table import Table
 
 from app import db
 from app.add_resource import add_from_url, add_manual
+from app.obsidian_writer import (
+    move_note_to_trash,
+    restore_note_from_trash,
+    delete_note_by_id,
+)
+from app.notion_sync import archive_resource, unarchive_resource
 from app.audit import (
     dead_check,
     full_audit,
@@ -473,7 +479,7 @@ def cmd_archive(
     resource_id: str = typer.Argument(...),
     hard: bool = typer.Option(False, "--hard", help="Hard delete (irreversible)"),
 ):
-    """Archive (soft-delete) or hard-delete a resource."""
+    """Archive (soft-delete via consumption_state) or hard-delete a resource."""
     if hard:
         confirm = typer.confirm(f"Permanently delete {resource_id}?")
         if not confirm:
@@ -484,6 +490,203 @@ def cmd_archive(
         console.print(f"[green]Resource {action}: {resource_id}[/green]")
     else:
         console.print(f"[red]Not found: {resource_id}[/red]")
+
+
+@app.command("trash")
+def cmd_trash(
+    resource_id: str = typer.Argument(..., help="Resource ID to trash"),
+    reason: str = typer.Option(None, "--reason", "-r", help="Reason for trashing"),
+    no_obsidian: bool = typer.Option(False, "--no-obsidian", help="Skip Obsidian sync"),
+    no_notion: bool = typer.Option(False, "--no-notion", help="Skip Notion sync"),
+):
+    """Soft-delete a resource (moves to trash)."""
+    result = db.trash_resources([resource_id], reason=reason)
+    if result["trashed"] > 0:
+        console.print(f"[green]Trashed: {resource_id}[/green]")
+        if not no_obsidian:
+            move_note_to_trash(resource_id)
+        if not no_notion:
+            res = db.get_resource(resource_id, include_trashed=True)
+            if res and res.notion_page_id:
+                archive_resource(res.notion_page_id)
+    else:
+        console.print(f"[red]Not found: {resource_id}[/red]")
+        raise typer.Exit(1)
+
+
+@app.command("restore")
+def cmd_restore(
+    resource_id: str = typer.Argument(..., help="Resource ID to restore"),
+    force: bool = typer.Option(False, "--force", "-f", help="Skip conflict check"),
+    no_obsidian: bool = typer.Option(False, "--no-obsidian", help="Skip Obsidian sync"),
+    no_notion: bool = typer.Option(False, "--no-notion", help="Skip Notion sync"),
+):
+    """Restore a trashed resource back to the active pool."""
+    if not force:
+        conflicts = db.check_restore_conflicts([resource_id])
+        if conflicts:
+            console.print("[yellow]URL conflict detected:[/yellow]")
+            for c in conflicts:
+                console.print(f"  URL: {c['url']}")
+                console.print(f"  Existing: [{c['existing_id']}] {c['existing_title']}")
+                console.print(f"  Trashed: [{c['trashed_id']}] (being restored)")
+            confirmed = typer.confirm("Restore anyway?")
+            if not confirmed:
+                console.print("[yellow]Restore cancelled.[/yellow]")
+                return
+    result = db.restore_resources([resource_id])
+    if result["restored"] > 0:
+        console.print(f"[green]Restored: {resource_id}[/green]")
+        if not no_obsidian:
+            restore_note_from_trash(resource_id)
+        if not no_notion:
+            res = db.get_resource(resource_id)
+            if res and res.notion_page_id:
+                unarchive_resource(res.notion_page_id)
+    else:
+        console.print(f"[red]Not found or not trashed: {resource_id}[/red]")
+        raise typer.Exit(1)
+
+
+@app.command("purge")
+def cmd_purge(
+    resource_id: str = typer.Argument(..., help="Resource ID to permanently delete"),
+    no_obsidian: bool = typer.Option(
+        False, "--no-obsidian", help="Skip Obsidian clean"
+    ),
+):
+    """Permanently delete a trashed resource."""
+    confirm = typer.confirm(f"Permanently purge {resource_id}? This cannot be undone.")
+    if not confirm:
+        return
+    result = db.purge_resources([resource_id])
+    if result["purged"] > 0:
+        console.print(f"[green]Purged: {resource_id}[/green]")
+        if not no_obsidian:
+            delete_note_by_id(resource_id)
+    else:
+        console.print(f"[red]Not found or not trashed: {resource_id}[/red]")
+        raise typer.Exit(1)
+
+
+@app.command("trashed")
+def cmd_trashed(
+    search: str = typer.Option(None, "--search", "-s", help="Search term"),
+    domain: str = typer.Option(None, "--domain", "-d", help="Domain filter"),
+    limit: int = typer.Option(20, "--limit", "-l", help="Result limit"),
+):
+    """List trashed resources."""
+    results = db.get_trashed_resources(
+        search_q=search,
+        domain=domain,
+        limit=limit,
+    )
+    if not results:
+        console.print("[yellow]Trash is empty.[/yellow]")
+        return
+    stats = db.get_trash_stats()
+    console.print(f"\n[bold]Trash ({stats['total']} items)[/bold]\n")
+    table = Table(show_header=True, header_style="bold red")
+    table.add_column("ID", width=10)
+    table.add_column("Title", width=40)
+    table.add_column("Domain", width=12)
+    table.add_column("Deleted", width=20)
+    table.add_column("Reason", width=20)
+    for r in results:
+        table.add_row(
+            r["id"] if isinstance(r, dict) else r.id,
+            (r["title"] if isinstance(r, dict) else r.title)[:39],
+            r["domain"] if isinstance(r, dict) else r.domain,
+            (r["deleted_at"] or "")[:16]
+            if isinstance(r, dict)
+            else (r.deleted_at or "")[:16],
+            (r.get("deleted_reason") or "")[:19]
+            if isinstance(r, dict)
+            else (getattr(r, "deleted_reason", None) or "")[:19],
+        )
+    console.print(table)
+    if stats.get("expiring_soon", 0) > 0:
+        console.print(
+            f"[yellow]{stats['expiring_soon']} item(s) expiring within 7 days[/yellow]"
+        )
+
+
+@app.command("auto-purge")
+def cmd_auto_purge(
+    dry_run: bool = typer.Option(
+        False, "--dry-run", "-n", help="Show what would be purged without deleting"
+    ),
+):
+    """Auto-purge expired trashed resources based on auto_purge_days setting."""
+    config = db.get_pool_config()
+    if config.get("auto_purge_enabled") != "true":
+        console.print("[yellow]Auto-purge is disabled. Enable it in Settings.[/yellow]")
+        return
+    ids = []
+    with db.get_conn() as conn:
+        rows = conn.execute(
+            """SELECT id, title, deleted_at FROM resources
+               WHERE deleted_at IS NOT NULL
+               AND trash_expires_at IS NOT NULL
+               AND trash_expires_at < datetime('now')"""
+        ).fetchall()
+        ids = [dict(r) for r in rows]
+    if not ids:
+        console.print("[green]No expired resources to purge.[/green]")
+        return
+    console.print(f"[bold]Found {len(ids)} expired resource(s) to purge:[/bold]")
+    for r in ids:
+        console.print(
+            f"  [{r['id']}] {r['title'][:50]} (deleted: {(r['deleted_at'] or '')[:10]})"
+        )
+    if dry_run:
+        console.print("[yellow]DRY RUN — nothing purged.[/yellow]")
+        return
+    confirmed = typer.confirm(f"Purge all {len(ids)} expired resources?")
+    if not confirmed:
+        console.print("[yellow]Cancelled.[/yellow]")
+        return
+    result = db.purge_expired_trash()
+    console.print(f"[green]Purged {result['purged']} expired resource(s).[/green]")
+
+
+@app.command("nuke")
+def cmd_nuke():
+    """Permanently delete ALL trashed resources."""
+    count = db.get_trash_count()
+    if count == 0:
+        console.print("[yellow]Trash is empty. Nothing to nuke.[/yellow]")
+        return
+    console.print(
+        f"[bold red]NUKE: {count} trashed resource(s) will be PERMANENTLY DELETED.[/bold red]"
+    )
+    console.print(
+        "[red]This cannot be undone. A backup will be created automatically.[/red]"
+    )
+    phrase = typer.prompt('Type "NUKE" to confirm')
+    if phrase != "NUKE":
+        console.print("[yellow]Nuke cancelled.[/yellow]")
+        return
+    ids = []
+    with db.get_conn() as conn:
+        rows = conn.execute(
+            "SELECT id FROM resources WHERE deleted_at IS NOT NULL"
+        ).fetchall()
+        ids = [r["id"] for r in rows]
+    if not ids:
+        console.print("[yellow]Nothing to nuke.[/yellow]")
+        return
+    from app.api.trash import _backup_before_purge
+
+    backup_path = _backup_before_purge(ids, label="nuke")
+    result = db.purge_resources(ids)
+    for rid in ids:
+        try:
+            delete_note_by_id(rid)
+        except Exception:
+            pass
+    console.print(f"[green]Nuked {result['purged']} resource(s).[/green]")
+    console.print(f"[dim]Backup saved: {backup_path}[/dim]")
 
 
 @app.command("use")

@@ -132,7 +132,7 @@
 
           <button class="btn btn-ghost" onclick="markUsed('{{ resource.id }}')">Mark used</button>
           <button class="btn btn-ghost" onclick="openCorrectModal('{{ resource.id }}')">Correct AI field</button>
-          <button class="btn btn-ghost" onclick="archiveResource('{{ resource.id }}')">Archive</button>
+          <button class="btn btn-ghost" style="color:var(--danger)" onclick="trashResource('{{ resource.id }}')">Trash</button>
         </div>
       </div>
 
@@ -278,14 +278,40 @@ function submitCorrection(id) {
   }).catch(function(e) { toast(e.message, 'error'); });
 }
 
-function archiveResource(id) {
-  if (!confirm('Archive this resource?')) return;
-  fetch('/api/resource/' + id, {
-    method: 'DELETE', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({hard: false})
+function trashResource(id) {
+  fetch('/api/trash', {
+    method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ids: [id], reason: 'Trashed from detail view'})
   }).then(function(r) { return r.json(); }).then(function(d) {
-    toast('Resource archived', 'success');
-    setTimeout(function() { window.location = '/resources'; }, 1000);
+    if (d.error) { toast(d.error, 'error'); return; }
+    showUndoToast('Resource moved to trash', 'restore', id);
+    setTimeout(function() { window.location = '/resources'; }, 11000);
   }).catch(function(e) { toast(e.message, 'error'); });
+}
+
+var undoActions = {};
+function showUndoToast(msg, action, id) {
+  var t = document.getElementById('toast');
+  var el = document.createElement('div');
+  el.className = 'toast toast-undo';
+  var undoKey = action + '-' + id + '-' + Date.now();
+  undoActions[undoKey] = {action: action, id: id};
+  el.innerHTML = '<span>' + msg + '</span> <button class="toast-undo-btn" data-undo="' + undoKey + '">Undo</button>';
+  el.querySelector('.toast-undo-btn').onclick = function() {
+    var key = this.dataset.undo;
+    var ua = undoActions[key];
+    if (!ua) return;
+    if (ua.action === 'restore') {
+      fetch('/api/trash/restore', {
+        method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ids: [ua.id]})
+      }).then(function(r) { return r.json(); }).then(function(u) {
+        if (u.restored > 0) { toast('Restored!', 'success'); } else { toast('Could not restore', 'error'); }
+      });
+    }
+    delete undoActions[key];
+    el.remove();
+  };
+  t.appendChild(el);
+  setTimeout(function() { el.remove(); delete undoActions[undoKey]; }, 10000);
 }
 
 // Initialize star display

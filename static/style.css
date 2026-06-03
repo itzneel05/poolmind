@@ -163,6 +163,11 @@ a:hover { color: var(--accent-hover); }
   padding: 6px 12px;
 }
 .btn-ghost:hover { color: var(--accent); background: var(--bg-hover); }
+.btn-danger {
+  background: transparent; border: 1px solid var(--danger);
+  color: var(--danger);
+}
+.btn-danger:hover { background: rgba(248, 113, 113, 0.1); box-shadow: 0 0 12px rgba(248, 113, 113, 0.2); }
 
 /* ── Inputs / Forms ── */
 
@@ -532,6 +537,9 @@ hr.divider { border: none; border-top: 1px solid var(--border-faint); margin: va
 .toast-success { background: #1a3a2a; border: 1px solid var(--success); }
 .toast-error { background: #3a1a1a; border: 1px solid var(--danger); }
 .toast-info { background: var(--bg-elevated); border: 1px solid var(--border-soft); }
+.toast-undo { background: #1a1a3a; border: 1px solid var(--accent); display: flex; align-items: center; gap: var(--space-3); }
+.toast-undo-btn { background: var(--accent); color: #fff; border: none; border-radius: var(--radius-sm); padding: 4px 12px; cursor: pointer; font-size: var(--text-xs); font-weight: 600; white-space: nowrap; }
+.toast-undo-btn:hover { filter: brightness(1.2); }
 
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(8px); }
