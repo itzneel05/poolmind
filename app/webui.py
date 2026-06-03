@@ -10,7 +10,15 @@ from pathlib import Path
 from flask import Flask, render_template, request
 
 from app import db
-from app.search import search, get_random, get_recent, get_untouched, list_by_filter
+from app.search import (
+    search,
+    count_search,
+    get_random,
+    get_recent,
+    get_untouched,
+    list_by_filter,
+)
+from app.db import count_audit_entries
 from app.api import register_blueprints
 from models.resource import Resource
 
@@ -78,13 +86,20 @@ def create_app() -> Flask:
         domain = request.args.get("domain") or None
         type_ = request.args.get("type") or None
         state = request.args.get("state") or None
-        limit = int(request.args.get("limit", 50))
+        page = int(request.args.get("page", 1))
+        per_page = 25
+        offset = (page - 1) * per_page
         if domain or type_ or state:
             resources = list_by_filter(
-                domain=domain, type_=type_, consumption_state=state, limit=limit
+                domain=domain,
+                type_=type_,
+                consumption_state=state,
+                limit=per_page,
+                offset=offset,
             )
         else:
-            resources = db.get_all_resources(limit=limit)
+            resources = db.get_all_resources(limit=per_page, offset=offset)
+        total = db.count_resources()
         stats = db.get_pool_stats()
         all_domains = [d["domain"] for d in stats["by_domain"]]
         all_types = [t["type"] for t in stats["by_type"]]
@@ -97,6 +112,9 @@ def create_app() -> Flask:
             current_type=type_ or "",
             current_state=state or "",
             stats=stats,
+            page=page,
+            per_page=per_page,
+            total=total,
         )
 
     # ── Browse ──
@@ -250,8 +268,18 @@ def create_app() -> Flask:
     # ── Maintenance: Audit ──
     @app.route("/maintenance/audit")
     def maint_audit():
-        log = db.get_audit_log(limit=100)
-        return render_template("maint_audit.html", log=log)
+        page = int(request.args.get("page", 1))
+        per_page = 25
+        offset = (page - 1) * per_page
+        log = db.get_audit_log(limit=per_page, offset=offset)
+        total = db.count_audit_entries()
+        return render_template(
+            "maint_audit.html",
+            log=log,
+            page=page,
+            per_page=per_page,
+            total=total,
+        )
 
     # ── Maintenance: Dedupe ──
     @app.route("/maintenance/dedupe")
@@ -368,10 +396,22 @@ def create_app() -> Flask:
         q = request.args.get("q", "")
         domain = request.args.get("domain") or None
         type_ = request.args.get("type") or None
+        page = int(request.args.get("page", 1))
+        per_page = 25
+        offset = (page - 1) * per_page
         results = []
+        total = 0
         if q:
-            results = search(query=q, domain=domain, type_=type_, limit=50)
-        return render_template("search.html", query=q, results=results)
+            results = search(query=q, domain=domain, type_=type_, limit=per_page)
+            total = count_search(query=q, domain=domain, type_=type_)
+        return render_template(
+            "search.html",
+            query=q,
+            results=results,
+            page=page,
+            per_page=per_page,
+            total=total,
+        )
 
     # ── Trash ──
     @app.route("/trash")
@@ -381,14 +421,14 @@ def create_app() -> Flask:
         type_ = request.args.get("type") or None
         sort = request.args.get("sort", "deleted_at")
         page = int(request.args.get("page", 1))
-        limit = 50
-        offset = (page - 1) * limit
+        per_page = 25
+        offset = (page - 1) * per_page
         results = db.get_trashed_resources(
             search_q=search_q,
             domain=domain,
             type_=type_,
             sort=sort,
-            limit=limit,
+            limit=per_page,
             offset=offset,
         )
         stats = db.get_trash_stats()
@@ -402,6 +442,9 @@ def create_app() -> Flask:
             current_type=type_ or "",
             search_q=search_q or "",
             current_sort=sort,
+            page=page,
+            per_page=per_page,
+            total=stats["total"],
         )
 
     return app

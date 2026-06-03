@@ -26,6 +26,7 @@ def search(
     temporal_relevance: str = None,
     min_quality: int = None,
     limit: int = 10,
+    offset: int = 0,
     natural_language: bool = False,
 ) -> List[Resource]:
 
@@ -56,6 +57,7 @@ def search(
         temporal_relevance=temporal_relevance,
         min_quality=min_quality,
         limit=fetch_limit,
+        offset=offset,
     )
 
     if natural_language and query and len(results) > 1:
@@ -77,6 +79,7 @@ def _execute_search(
     temporal_relevance: str = None,
     min_quality: int = None,
     limit: int = 10,
+    offset: int = 0,
 ) -> List[Resource]:
 
     from app.db import get_db_path
@@ -127,9 +130,9 @@ def _execute_search(
                 WHERE {where_clause}
                   AND resources_fts MATCH ?
                 ORDER BY fts.rank
-                LIMIT ?
+                LIMIT ? OFFSET ?
             """
-            params_with_fts = params + [fts_safe, limit]
+            params_with_fts = params + [fts_safe, limit, offset]
             rows = conn.execute(sql, params_with_fts).fetchall()
         else:
             sql = f"""
@@ -139,9 +142,9 @@ def _execute_search(
                 ORDER BY
                     CASE WHEN r.quality_score IS NOT NULL THEN r.quality_score ELSE 0 END DESC,
                     r.added_on DESC
-                LIMIT ?
+                LIMIT ? OFFSET ?
             """
-            params_with_limit = params + [limit]
+            params_with_limit = params + [limit, offset]
             rows = conn.execute(sql, params_with_limit).fetchall()
 
         return [Resource.from_db_row(dict(r)) for r in rows]
@@ -156,6 +159,7 @@ def list_by_filter(
     skill_level: str = None,
     consumption_state: str = None,
     limit: int = 20,
+    offset: int = 0,
 ) -> List[Resource]:
     return _execute_search(
         domain=domain,
@@ -163,6 +167,7 @@ def list_by_filter(
         skill_level=skill_level,
         consumption_state=consumption_state,
         limit=limit,
+        offset=offset,
     )
 
 
@@ -207,6 +212,48 @@ def _rerank_results(query: str, results: List[Resource]) -> Optional[List[Resour
         r.relevance_score = scores.get(r.id)
 
     return ordered if ordered else None
+
+
+def count_search(
+    query: str = "",
+    domain: str = None,
+    type_: str = None,
+) -> int:
+    from app.db import get_db_path
+
+    conn = sqlite3.connect(get_db_path())
+    try:
+        conditions = ["r.consumption_state != 'archived'"]
+        params = []
+        use_fts = bool(query and query.strip())
+        if use_fts:
+            fts_safe = query.replace('"', '""')
+        if domain:
+            conditions.append("r.domain = ?")
+            params.append(domain)
+        if type_:
+            conditions.append("r.type = ?")
+            params.append(type_)
+        where_clause = " AND ".join(conditions)
+        if use_fts:
+            sql = f"""
+                SELECT COUNT(*) as c
+                FROM resources r
+                JOIN resources_fts fts ON r.rowid = fts.rowid
+                WHERE {where_clause}
+                  AND resources_fts MATCH ?
+            """
+            row = conn.execute(sql, params + [fts_safe]).fetchone()
+        else:
+            sql = f"""
+                SELECT COUNT(*) as c
+                FROM resources r
+                WHERE {where_clause}
+            """
+            row = conn.execute(sql, params).fetchone()
+        return row["c"]
+    finally:
+        conn.close()
 
 
 def get_random(limit: int = 1) -> List[Resource]:

@@ -4,13 +4,13 @@
 <header class="page-header">
   <h1 class="page-title">Resources</h1>
   <div class="page-actions">
-    <span class="mono faint">{{ resources|length }} resources</span>
+    <span class="mono faint">{{ total }} resources</span>
     <a href="/add" class="btn btn-primary">+ Add</a>
   </div>
 </header>
 
-<section class="page-content">
-  <form class="filter-bar" method="get" action="/resources">
+<section class="page-content" id="list-container">
+  <form class="filter-bar" method="get" action="/resources" id="filter-form">
     <select name="domain" class="filter-select">
       <option value="">All Domains</option>
       {% for d in domains %}
@@ -31,42 +31,88 @@
       <option value="mastered" {% if current_state == 'mastered' %}selected{% endif %}>Mastered</option>
       <option value="applied" {% if current_state == 'applied' %}selected{% endif %}>Applied</option>
     </select>
-    <button type="submit" class="btn btn-secondary">Filter</button>
+    <noscript><button type="submit" class="btn btn-secondary">Filter</button></noscript>
   </form>
 
-  <table class="data-table">
-    <thead>
-      <tr>
-        <th>ID</th>
-        <th>Title</th>
-        <th>Domain</th>
-        <th>Type</th>
-        <th>Level</th>
-        <th class="num">Q</th>
-        <th>State</th>
-        <th></th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for r in resources %}
-      <tr onclick="window.location='/resource/{{ r.id }}'" class="clickable-row">
-        <td class="mono faint">{{ r.id }}</td>
-        <td>{{ r.title[:60] }}</td>
-        <td>{{ r.domain }}</td>
-        <td><span class="type-chip {{ r.type }}">{{ r.type }}</span></td>
-        <td>{{ r.skill_level }}</td>
-        <td class="num mono">{{ r.quality_score or '-' }}</td>
-        <td><span class="state-badge {{ r.consumption_state }}">{{ r.consumption_state }}</span></td>
-        <td onclick="event.stopPropagation()" style="white-space:nowrap">
-          {% if r.enrichment_status == 'pending' or r.enrichment_status == 'in_progress' %}<span class="state-badge warn" style="font-size:var(--text-xs)">AI...</span>{% endif %}
-          <button class="btn btn-ghost" style="color:var(--danger);font-size:var(--text-xs);padding:2px 6px" onclick="trashFromList('{{ r.id }}')">Trash</button>
-        </td>
-      </tr>
+  <div id="list-table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Title</th>
+          <th>Domain</th>
+          <th>Type</th>
+          <th>Level</th>
+          <th class="num">Q</th>
+          <th>State</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="resource-skeleton" style="display:none">
+        {% for i in range(5) %}
+        <tr>
+          <td><span class="skeleton skeleton-cell skeleton-cell-sm">&nbsp;</span></td>
+          <td><span class="skeleton skeleton-cell skeleton-cell-xl">&nbsp;</span></td>
+          <td><span class="skeleton skeleton-cell skeleton-cell-sm">&nbsp;</span></td>
+          <td><span class="skeleton skeleton-chip">&nbsp;</span></td>
+          <td><span class="skeleton skeleton-cell skeleton-cell-sm">&nbsp;</span></td>
+          <td><span class="skeleton skeleton-badge">&nbsp;</span></td>
+          <td><span class="skeleton skeleton-badge">&nbsp;</span></td>
+          <td><span class="skeleton skeleton-badge">&nbsp;</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tbody id="resource-rows">
+        {% for r in resources %}
+        <tr onclick="window.location='/resource/{{ r.id }}'" class="clickable-row">
+          <td class="mono faint">{{ r.id }}</td>
+          <td>{{ r.title[:60] }}</td>
+          <td>{{ r.domain }}</td>
+          <td><span class="type-chip {{ r.type }}">{{ r.type }}</span></td>
+          <td>{{ r.skill_level }}</td>
+          <td class="num mono">{{ r.quality_score or '-' }}</td>
+          <td><span class="state-badge {{ r.consumption_state }}">{{ r.consumption_state }}</span></td>
+          <td onclick="event.stopPropagation()" style="white-space:nowrap">
+            {% if r.enrichment_status == 'pending' or r.enrichment_status == 'in_progress' %}<span class="state-badge warn" style="font-size:var(--text-xs)">AI...</span>{% endif %}
+            <button class="btn btn-ghost" style="color:var(--danger);font-size:var(--text-xs);padding:2px 6px" onclick="trashFromList('{{ r.id }}')">Trash</button>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="8" class="empty-cell">No resources found.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    {% if total > per_page %}
+    <div class="pagination" id="list-pagination">
+      {% set p = page %}
+      {% set total_pages = ((total - 1) // per_page) + 1 %}
+      {% if p > 1 %}
+      <a href="?page={{ p - 1 }}{% if current_domain %}&domain={{ current_domain }}{% endif %}{% if current_type %}&type={{ current_type }}{% endif %}{% if current_state %}&state={{ current_state }}{% endif %}">&laquo; Prev</a>
       {% else %}
-      <tr><td colspan="8" class="empty-cell">No resources found.</td></tr>
+      <span class="disabled">&laquo; Prev</span>
+      {% endif %}
+      {% for n in range(1, total_pages + 1) %}
+        {% if n == p %}
+        <span class="active">{{ n }}</span>
+        {% elif n == 1 or n == total_pages or (n >= p - 2 and n <= p + 2) %}
+        <a href="?page={{ n }}{% if current_domain %}&domain={{ current_domain }}{% endif %}{% if current_type %}&type={{ current_type }}{% endif %}{% if current_state %}&state={{ current_state }}{% endif %}">{{ n }}</a>
+        {% elif n == p - 3 or n == p + 3 %}
+        <span class="gap">...</span>
+        {% endif %}
       {% endfor %}
-    </tbody>
-  </table>
+      {% if p < total_pages %}
+      <a href="?page={{ p + 1 }}{% if current_domain %}&domain={{ current_domain }}{% endif %}{% if current_type %}&type={{ current_type }}{% endif %}{% if current_state %}&state={{ current_state }}{% endif %}">Next &raquo;</a>
+      {% else %}
+      <span class="disabled">Next &raquo;</span>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    <div class="faint" style="text-align:center;font-size:var(--text-xs);padding-top:var(--space-1);padding-bottom:var(--space-3)">
+      Showing {{ resources|length }} of {{ total }}
+    </div>
+  </div>
 </section>
 {% block scripts %}
 <script>
@@ -109,6 +155,33 @@ function showUndoToastList(msg, action, id) {
   };
   t.appendChild(el);
   setTimeout(function() { el.remove(); delete undoActions[undoKey]; }, 10000);
+}
+
+document.getElementById('list-container').addEventListener('click', function(e) {
+  var link = e.target.closest('.pagination a');
+  if (!link) return;
+  e.preventDefault();
+  var url = link.getAttribute('href');
+  navigateList(url);
+});
+
+document.getElementById('filter-form').addEventListener('change', function() {
+  var params = new URLSearchParams(new FormData(this));
+  navigateList('/resources?' + params.toString());
+});
+
+function navigateList(url) {
+  document.getElementById('resource-skeleton').style.display = '';
+  document.getElementById('resource-rows').style.display = 'none';
+  document.getElementById('list-pagination') && (document.getElementById('list-pagination').style.display = 'none');
+  fetch(url).then(function(r) { return r.text(); }).then(function(html) {
+    var parser = new DOMParser();
+    var doc = parser.parseFromString(html, 'text/html');
+    var newContainer = doc.getElementById('list-container');
+    if (!newContainer) { window.location = url; return; }
+    document.getElementById('list-container').innerHTML = newContainer.innerHTML;
+    window.history.pushState({}, '', url);
+  }).catch(function() { window.location = url; });
 }
 </script>
 {% endblock %}

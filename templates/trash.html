@@ -40,51 +40,97 @@
   </div>
 
   {% if resources %}
-  <div style="margin-bottom:var(--space-3);display:flex;gap:var(--space-2);align-items:center">
-    <label class="checkbox-label" style="margin:0">
-      <input type="checkbox" id="select-all" onchange="toggleAll()">
-      Select all
-    </label>
-    <button class="btn btn-secondary" onclick="bulkRestore()" id="restore-btn" disabled>Restore selected</button>
-    <button class="btn btn-ghost" style="color:var(--danger)" onclick="bulkPurge()" id="purge-btn" disabled>Delete forever</button>
+  <div id="trash-container">
+    <div style="margin-bottom:var(--space-3);display:flex;gap:var(--space-2);align-items:center">
+      <label class="checkbox-label" style="margin:0">
+        <input type="checkbox" id="select-all" onchange="toggleAll()">
+        Select all
+      </label>
+      <button class="btn btn-secondary" onclick="bulkRestore()" id="restore-btn" disabled>Restore selected</button>
+      <button class="btn btn-ghost" style="color:var(--danger)" onclick="bulkPurge()" id="purge-btn" disabled>Delete forever</button>
+    </div>
+
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th style="width:32px"></th>
+          <th>ID</th>
+          <th>Title</th>
+          <th>Domain</th>
+          <th>Type</th>
+          <th>Trashed</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="trash-skeleton" style="display:none">
+        {% for i in range(5) %}
+        <tr>
+          <td><span class="skeleton skeleton-badge">&nbsp;</span></td>
+          <td><span class="skeleton skeleton-cell skeleton-cell-sm">&nbsp;</span></td>
+          <td><span class="skeleton skeleton-cell skeleton-cell-xl">&nbsp;</span></td>
+          <td><span class="skeleton skeleton-cell skeleton-cell-sm">&nbsp;</span></td>
+          <td><span class="skeleton skeleton-chip">&nbsp;</span></td>
+          <td><span class="skeleton skeleton-cell skeleton-cell-sm">&nbsp;</span></td>
+          <td><span class="skeleton skeleton-badge">&nbsp;</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tbody id="trash-rows">
+        {% for r in resources %}
+        <tr class="clickable-row" data-id="{{ r.id }}" onclick="rowClick(this, event)">
+          <td onclick="event.stopPropagation()"><input type="checkbox" class="row-checkbox" value="{{ r.id }}" onchange="updateBulkBtns()"></td>
+          <td class="mono faint">{{ r.id }}</td>
+          <td>
+            <div class="gem-title" style="font-size:var(--text-sm)">{{ r.title[:80] }}</div>
+            {% if r.deleted_reason %}
+            <div class="faint" style="font-size:var(--text-xs);margin-top:2px">"{{ r.deleted_reason }}"</div>
+            {% endif %}
+          </td>
+          <td>{{ r.domain }}</td>
+          <td><span class="type-chip {{ r.type }}">{{ r.type }}</span></td>
+          <td class="mono faint">{{ r.deleted_at[:10] if r.deleted_at else '' }}</td>
+          <td onclick="event.stopPropagation()">
+            <div style="display:flex;gap:var(--space-1)">
+              <button class="btn btn-ghost" onclick="restoreOne('{{ r.id }}')" title="Restore">Restore</button>
+              <button class="btn btn-ghost" style="color:var(--danger)" onclick="purgeOne('{{ r.id }}')" title="Delete forever">Delete</button>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    {% if total > per_page %}
+    <div class="pagination" id="trash-pagination">
+      {% set p = page %}
+      {% set total_pages = ((total - 1) // per_page) + 1 %}
+      {% if p > 1 %}
+      <a href="?page={{ p - 1 }}{% if search_q %}&search={{ search_q }}{% endif %}{% if current_domain %}&domain={{ current_domain }}{% endif %}{% if current_sort != 'deleted_at' %}&sort={{ current_sort }}{% endif %}">&laquo; Prev</a>
+      {% else %}
+      <span class="disabled">&laquo; Prev</span>
+      {% endif %}
+      {% for n in range(1, total_pages + 1) %}
+        {% if n == p %}
+        <span class="active">{{ n }}</span>
+        {% elif n == 1 or n == total_pages or (n >= p - 2 and n <= p + 2) %}
+        <a href="?page={{ n }}{% if search_q %}&search={{ search_q }}{% endif %}{% if current_domain %}&domain={{ current_domain }}{% endif %}{% if current_sort != 'deleted_at' %}&sort={{ current_sort }}{% endif %}">{{ n }}</a>
+        {% elif n == p - 3 or n == p + 3 %}
+        <span class="gap">...</span>
+        {% endif %}
+      {% endfor %}
+      {% if p < total_pages %}
+      <a href="?page={{ p + 1 }}{% if search_q %}&search={{ search_q }}{% endif %}{% if current_domain %}&domain={{ current_domain }}{% endif %}{% if current_sort != 'deleted_at' %}&sort={{ current_sort }}{% endif %}">Next &raquo;</a>
+      {% else %}
+      <span class="disabled">Next &raquo;</span>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    <div class="faint" style="text-align:center;font-size:var(--text-xs);padding-top:var(--space-1);padding-bottom:var(--space-3)">
+      Showing {{ resources|length }} of {{ total }}
+    </div>
   </div>
 
-  <table class="data-table">
-    <thead>
-      <tr>
-        <th style="width:32px"></th>
-        <th>ID</th>
-        <th>Title</th>
-        <th>Domain</th>
-        <th>Type</th>
-        <th>Trashed</th>
-        <th></th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for r in resources %}
-      <tr class="clickable-row" data-id="{{ r.id }}" onclick="rowClick(this, event)">
-        <td onclick="event.stopPropagation()"><input type="checkbox" class="row-checkbox" value="{{ r.id }}" onchange="updateBulkBtns()"></td>
-        <td class="mono faint">{{ r.id }}</td>
-        <td>
-          <div class="gem-title" style="font-size:var(--text-sm)">{{ r.title[:80] }}</div>
-          {% if r.deleted_reason %}
-          <div class="faint" style="font-size:var(--text-xs);margin-top:2px">"{{ r.deleted_reason }}"</div>
-          {% endif %}
-        </td>
-        <td>{{ r.domain }}</td>
-        <td><span class="type-chip {{ r.type }}">{{ r.type }}</span></td>
-        <td class="mono faint">{{ r.deleted_at[:10] if r.deleted_at else '' }}</td>
-        <td onclick="event.stopPropagation()">
-          <div style="display:flex;gap:var(--space-1)">
-            <button class="btn btn-ghost" onclick="restoreOne('{{ r.id }}')" title="Restore">Restore</button>
-            <button class="btn btn-ghost" style="color:var(--danger)" onclick="purgeOne('{{ r.id }}')" title="Delete forever">Delete</button>
-          </div>
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
   {% else %}
   <div class="empty-state">
     <div class="empty-icon" data-lucide="trash-2"></div>
@@ -175,7 +221,7 @@ function filterTrash() {
   if (search) params.set('search', search);
   if (domain) params.set('domain', domain);
   if (sort) params.set('sort', sort);
-  window.location = '/trash?' + params.toString();
+  navigateTrash('/trash?' + params.toString());
 }
 
 function toggleAll() {
@@ -342,6 +388,31 @@ function emptyExpired() {
     toast('Purged ' + (d.purged || 0) + ' expired items', 'error');
     setTimeout(function() { window.location.reload(); }, 500);
   });
+}
+
+var trashContainer = document.getElementById('trash-container');
+if (trashContainer) {
+  trashContainer.addEventListener('click', function(e) {
+    var link = e.target.closest('.pagination a');
+    if (!link) return;
+    e.preventDefault();
+    navigateTrash(link.getAttribute('href'));
+  });
+}
+
+function navigateTrash(url) {
+  document.getElementById('trash-skeleton').style.display = '';
+  document.getElementById('trash-rows').style.display = 'none';
+  var pag = document.getElementById('trash-pagination');
+  if (pag) pag.style.display = 'none';
+  fetch(url).then(function(r) { return r.text(); }).then(function(html) {
+    var parser = new DOMParser();
+    var doc = parser.parseFromString(html, 'text/html');
+    var newContainer = doc.getElementById('trash-container');
+    if (!newContainer) { window.location = url; return; }
+    document.getElementById('trash-container').innerHTML = newContainer.innerHTML;
+    window.history.pushState({}, '', url);
+  }).catch(function() { window.location = url; });
 }
 </script>
 {% endblock %}

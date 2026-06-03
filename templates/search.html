@@ -12,7 +12,7 @@
   </div>
 
   <div id="search-keyword" style="display:{% if not request.args.get('nl') %}block{% else %}none{% endif %}">
-    <form class="search-bar" method="get" action="/search">
+    <form class="search-bar" method="get" action="/search" id="search-form-kw">
       <input type="hidden" name="nl" value="">
       <input type="text" name="q" value="{{ query }}" class="search-input-big" placeholder="Search resources...">
       <button type="submit" class="btn btn-primary">Search</button>
@@ -25,7 +25,7 @@
       <p class="faint" style="font-size:var(--text-sm)"><span class="stat-badge warn">[AI OFFLINE]</span> Natural language search requires the AI API (freellmapi). Results will use keyword matching instead.</p>
     </div>
     {% endif %}
-    <form class="search-bar" method="get" action="/search">
+    <form class="search-bar" method="get" action="/search" id="search-form-nl">
       <input type="hidden" name="nl" value="1">
       <input type="text" name="q" value="{{ query }}" class="search-input-big" placeholder='"Find me a free beginner video on XSS"'>
       <button type="submit" class="btn btn-primary">Search</button>
@@ -34,23 +34,67 @@
   </div>
 
   {% if query and results is defined %}
-  <div class="section-divider"><span>{{ results|length }} RESULTS FOR "{{ query }}"</span></div>
+  <div class="section-divider"><span id="result-count-label">{{ total }} RESULTS FOR "{{ query }}"</span></div>
   {% if results %}
-  <table class="data-table">
-    <thead><tr><th>ID</th><th>Title</th><th>Domain</th><th>Type</th><th class="num">Rel</th><th>State</th></tr></thead>
-    <tbody>
-      {% for r in results %}
-      <tr onclick="window.location='/resource/{{ r.id }}'" class="clickable-row">
-        <td class="mono faint">{{ r.id }}</td>
-        <td>{{ r.title[:60] }}</td>
-        <td>{{ r.domain }}</td>
-        <td><span class="type-chip {{ r.type }}">{{ r.type }}</span></td>
-        <td class="num mono">{{ r.relevance_score or '-' }}</td>
-        <td><span class="state-badge {{ r.consumption_state }}">{{ r.consumption_state }}</span></td>
-      </tr>
+  <div id="search-container">
+    <table class="data-table">
+      <thead><tr><th>ID</th><th>Title</th><th>Domain</th><th>Type</th><th class="num">Rel</th><th>State</th></tr></thead>
+      <tbody id="search-skeleton" style="display:none">
+        {% for i in range(5) %}
+        <tr>
+          <td><span class="skeleton skeleton-cell skeleton-cell-sm">&nbsp;</span></td>
+          <td><span class="skeleton skeleton-cell skeleton-cell-xl">&nbsp;</span></td>
+          <td><span class="skeleton skeleton-cell skeleton-cell-sm">&nbsp;</span></td>
+          <td><span class="skeleton skeleton-chip">&nbsp;</span></td>
+          <td><span class="skeleton skeleton-badge">&nbsp;</span></td>
+          <td><span class="skeleton skeleton-badge">&nbsp;</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tbody id="search-rows">
+        {% for r in results %}
+        <tr onclick="window.location='/resource/{{ r.id }}'" class="clickable-row">
+          <td class="mono faint">{{ r.id }}</td>
+          <td>{{ r.title[:60] }}</td>
+          <td>{{ r.domain }}</td>
+          <td><span class="type-chip {{ r.type }}">{{ r.type }}</span></td>
+          <td class="num mono">{{ r.relevance_score or '-' }}</td>
+          <td><span class="state-badge {{ r.consumption_state }}">{{ r.consumption_state }}</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    {% if total > per_page %}
+    <div class="pagination" id="search-pagination">
+      {% set p = page %}
+      {% set total_pages = ((total - 1) // per_page) + 1 %}
+      {% if p > 1 %}
+      <a href="?q={{ query }}&page={{ p - 1 }}{% if request.args.get('nl') %}&nl=1{% endif %}">&laquo; Prev</a>
+      {% else %}
+      <span class="disabled">&laquo; Prev</span>
+      {% endif %}
+      {% for n in range(1, total_pages + 1) %}
+        {% if n == p %}
+        <span class="active">{{ n }}</span>
+        {% elif n == 1 or n == total_pages or (n >= p - 2 and n <= p + 2) %}
+        <a href="?q={{ query }}&page={{ n }}{% if request.args.get('nl') %}&nl=1{% endif %}">{{ n }}</a>
+        {% elif n == p - 3 or n == p + 3 %}
+        <span class="gap">...</span>
+        {% endif %}
       {% endfor %}
-    </tbody>
-  </table>
+      {% if p < total_pages %}
+      <a href="?q={{ query }}&page={{ p + 1 }}{% if request.args.get('nl') %}&nl=1{% endif %}">Next &raquo;</a>
+      {% else %}
+      <span class="disabled">Next &raquo;</span>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    <div class="faint" style="text-align:center;font-size:var(--text-xs);padding-top:var(--space-1);padding-bottom:var(--space-3)">
+      Showing {{ results|length }} of {{ total }}
+    </div>
+  </div>
   {% else %}
   <div class="empty-state">
     <p>No results found for "{{ query }}".</p>
@@ -68,6 +112,46 @@ function switchSearchTab(name) {
   document.getElementById('search-nl').style.display = name === 'nl' ? 'block' : 'none';
   document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
   document.querySelectorAll('.tab')[name === 'keyword' ? 0 : 1].classList.add('active');
+}
+
+var searchContainer = document.getElementById('search-container');
+if (searchContainer) {
+  searchContainer.addEventListener('click', function(e) {
+    var link = e.target.closest('.pagination a');
+    if (!link) return;
+    e.preventDefault();
+    var url = link.getAttribute('href');
+    navigateSearch(url);
+  });
+}
+
+document.getElementById('search-form-kw') && document.getElementById('search-form-kw').addEventListener('submit', function(e) {
+  e.preventDefault();
+  var url = this.action + '?' + new URLSearchParams(new FormData(this)).toString();
+  window.location = url;
+});
+
+document.getElementById('search-form-nl') && document.getElementById('search-form-nl').addEventListener('submit', function(e) {
+  e.preventDefault();
+  var url = this.action + '?' + new URLSearchParams(new FormData(this)).toString();
+  window.location = url;
+});
+
+function navigateSearch(url) {
+  document.getElementById('search-skeleton').style.display = '';
+  document.getElementById('search-rows').style.display = 'none';
+  var pag = document.getElementById('search-pagination');
+  if (pag) pag.style.display = 'none';
+  fetch(url).then(function(r) { return r.text(); }).then(function(html) {
+    var parser = new DOMParser();
+    var doc = parser.parseFromString(html, 'text/html');
+    var newContainer = doc.getElementById('search-container');
+    var newLabel = doc.getElementById('result-count-label');
+    if (!newContainer) { window.location = url; return; }
+    document.getElementById('search-container').innerHTML = newContainer.innerHTML;
+    if (newLabel) document.getElementById('result-count-label').textContent = newLabel.textContent;
+    window.history.pushState({}, '', url);
+  }).catch(function() { window.location = url; });
 }
 </script>
 {% endblock %}

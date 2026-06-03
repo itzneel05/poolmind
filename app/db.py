@@ -508,10 +508,17 @@ def _log_action(
     )
 
 
-def get_audit_log(limit: int = 50) -> List[dict]:
+def count_audit_entries() -> int:
+    with get_conn() as conn:
+        row = conn.execute("SELECT COUNT(*) as c FROM audit_log").fetchone()
+    return row["c"]
+
+
+def get_audit_log(limit: int = 50, offset: int = 0) -> List[dict]:
     with get_conn() as conn:
         rows = conn.execute(
-            "SELECT * FROM audit_log ORDER BY timestamp DESC LIMIT ?", [limit]
+            "SELECT * FROM audit_log ORDER BY timestamp DESC LIMIT ? OFFSET ?",
+            [limit, offset],
         ).fetchall()
     return [dict(r) for r in rows]
 
