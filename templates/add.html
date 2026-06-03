@@ -1,0 +1,94 @@
+{% extends "layout.html" %}
+{% block title %}— Add Resource{% endblock %}
+{% block content %}
+<header class="page-header">
+  <h1 class="page-title">+ Add Resource</h1>
+  <div class="page-actions">
+    <a href="/add/manual" class="btn btn-secondary">Manual entry</a>
+    <a href="/ingest" class="btn btn-ghost">Bulk ingest</a>
+  </div>
+</header>
+
+<section class="page-content">
+  <div class="form-card">
+    <form id="add-form" onsubmit="return addResource(event)">
+      <div class="form-group">
+        <label for="url">URL *</label>
+        <input type="url" id="url" name="url" placeholder="https://..." required class="form-input">
+      </div>
+      <div class="form-group">
+        <label for="notes">Notes <span class="faint">(optional)</span></label>
+        <textarea id="notes" name="notes" rows="3" class="form-input" placeholder="Why this resource matters to you..."></textarea>
+      </div>
+      <div class="form-options">
+        <label class="checkbox-label"><input type="checkbox" name="ai_disabled"> Disable AI enrichment (faster)</label>
+        <label class="checkbox-label"><input type="checkbox" name="skip_notion"> Skip Notion sync</label>
+        <label class="checkbox-label"><input type="checkbox" name="skip_obsidian"> Skip Obsidian write</label>
+        <label class="checkbox-label"><input type="checkbox" name="force"> Force (skip duplicate check)</label>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary" id="submit-btn">Add Resource</button>
+      </div>
+    </form>
+
+    <div id="progress" class="progress-panel" style="display:none">
+      <div class="section-divider"><span>PROCESSING</span></div>
+      <div id="progress-steps"></div>
+      <div id="result-card" style="display:none"></div>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function addResource(e) {
+  e.preventDefault();
+  var url = document.getElementById('url').value.trim();
+  if (!url) { toast('URL is required', 'error'); return false; }
+
+  var btn = document.getElementById('submit-btn');
+  btn.disabled = true;
+  btn.textContent = 'Processing...';
+
+  var progress = document.getElementById('progress');
+  var steps = document.getElementById('progress-steps');
+  progress.style.display = 'block';
+  steps.innerHTML = '<div class="step active">Processing...</div>';
+
+  try {
+    var resp = await fetch('/api/add', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        url: url,
+        notes: document.querySelector('[name=notes]').value,
+        ai_disabled: document.querySelector('[name=ai_disabled]').checked,
+        skip_notion: document.querySelector('[name=skip_notion]').checked,
+        skip_obsidian: document.querySelector('[name=skip_obsidian]').checked,
+        force: document.querySelector('[name=force]').checked,
+      })
+    });
+    var data = await resp.json();
+    if (resp.ok) {
+      steps.innerHTML = '<div class="step ok">[OK] Resource added</div>';
+      var rc = document.getElementById('result-card');
+      var r = data.resource;
+      rc.innerHTML = '<div class="section-divider"><span>ADDED</span></div>' +
+        '<div class="result-item"><div class="result-title">' + r.title + '</div>' +
+        '<div class="result-meta"><span class="mono faint">' + r.id + '</span> | ' + r.domain + ' | ' + r.type + '</div>' +
+        '<div class="result-actions"><a href="/resource/' + r.id + '" class="btn btn-primary">View detail</a>' +
+        '<a href="/add" class="btn btn-secondary">Add another</a></div></div>';
+      rc.style.display = 'block';
+    } else {
+      steps.innerHTML = '<div class="step fail">[FAIL] ' + (data.error || 'Add failed') + '</div>';
+    }
+  } catch(err) {
+    steps.innerHTML = '<div class="step fail">[FAIL] ' + err.message + '</div>';
+  }
+  btn.disabled = false;
+  btn.textContent = 'Add Resource';
+  return false;
+}
+</script>
+{% endblock %}

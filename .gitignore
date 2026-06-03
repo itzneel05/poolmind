@@ -1,0 +1,56 @@
+# Secrets
+.env
+.env.local
+*.key
+*.pem
+
+# Data (local only)
+data/
+vault/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+
+# Virtual environments
+venv/
+.venv/
+env/
+.env.bak
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Generated output (regenerated on demand)
+poolmind-anki.csv
+poolmind-graph.html
+poolmind-site.html
+
+# SQLite database
+*.db
+*.sqlite
+*.sqlite3
+
+# freellmapi sub-project (cloned in-place, see SETUP.md)
+freellmapi/.env
+freellmapi/node_modules/
+freellmapi/dist/

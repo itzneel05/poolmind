@@ -1,0 +1,95 @@
+{% extends "layout.html" %}
+{% block title %}— Tech Stacks{% endblock %}
+{% block content %}
+<header class="page-header">
+  <h1 class="page-title">Tech Stacks</h1>
+  <div class="page-actions">
+    <button class="btn btn-primary" onclick="openGenerateStackModal()">Generate new stack</button>
+  </div>
+</header>
+
+<section class="page-content">
+  {% if stacks %}
+  <table class="data-table">
+    <thead>
+      <tr><th>Stack</th><th>Mission</th><th>Resources</th><th>Created</th></tr>
+    </thead>
+    <tbody>
+      {% for s in stacks %}
+      <tr onclick="window.location='/intelligence/stacks/{{ s.id }}'" class="clickable-row">
+        <td class="mono">{{ s.stack_name }}</td>
+        <td>{{ (s.mission or '')[:80] }}</td>
+        <td class="num mono">{{ s.resources|length }}</td>
+        <td class="faint">{{ (s.created_at or '')[:10] }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state">
+    <div class="empty-icon" data-lucide="layers"></div>
+    <h2>No stacks yet</h2>
+    <p>Generate a tech stack from your resource pool.</p>
+    <button class="btn btn-primary" onclick="openGenerateStackModal()">Generate stack</button>
+  </div>
+  {% endif %}
+</section>
+
+<div class="modal-overlay" id="gen-stack-modal" style="display:none">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Generate Tech Stack</h2>
+      <button class="modal-close" onclick="closeModal('gen-stack-modal')">x</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>What mission or project?</label>
+        <input type="text" id="stack-mission" class="form-input" placeholder="e.g. Build a cloud security monitoring pipeline">
+      </div>
+      <div id="stack-progress" class="progress-panel" style="display:none">
+        <div class="step active">Generating stack... (may take a moment)</div>
+      </div>
+      <div id="stack-result" style="display:none"></div>
+      <div class="form-actions">
+        <button class="btn btn-ghost" onclick="closeModal('gen-stack-modal')">Cancel</button>
+        <button class="btn btn-primary" onclick="generateStack()">Generate</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function openGenerateStackModal() {
+  document.getElementById('gen-stack-modal').style.display = 'flex';
+  document.getElementById('stack-mission').value = '';
+  document.getElementById('stack-progress').style.display = 'none';
+  document.getElementById('stack-result').style.display = 'none';
+}
+function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+function generateStack() {
+  var mission = document.getElementById('stack-mission').value.trim();
+  if (!mission) { toast('Enter a mission', 'error'); return; }
+  var progress = document.getElementById('stack-progress');
+  var result = document.getElementById('stack-result');
+  progress.style.display = 'block';
+  result.style.display = 'none';
+  fetch('/api/stacks/generate', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({mission: mission})
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    if (d.stack_id) {
+      result.innerHTML = '<div class="step ok">[OK] Stack generated! <a href="/intelligence/stacks/' + d.stack_id + '" class="btn btn-primary">View stack</a></div>';
+    } else {
+      result.innerHTML = '<div class="step fail">[FAIL] ' + (d.error || 'Generation failed') + '</div>';
+    }
+    result.style.display = 'block';
+  }).catch(function(e) {
+    result.innerHTML = '<div class="step fail">[FAIL] ' + e.message + '</div>';
+    result.style.display = 'block';
+  });
+}
+</script>
+{% endblock %}

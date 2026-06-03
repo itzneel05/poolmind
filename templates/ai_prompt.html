@@ -1,0 +1,139 @@
+{% extends "layout.html" %}
+{% block title %}— AI Prompt: {{ task }}{% endblock %}
+{% block content %}
+<header class="page-header">
+  <div>
+    <div class="breadcrumb">
+      <a href="/ai/prompts">Prompts</a> / <span class="faint">{{ task }}</span>
+    </div>
+    <h1 class="page-title">Prompt: {{ task }}</h1>
+  </div>
+  <div class="page-actions">
+    <button class="btn btn-secondary" onclick="previewEvolve()">Preview evolve</button>
+    <button class="btn btn-primary" onclick="runEvolve()">Run evolution</button>
+  </div>
+</header>
+
+<section class="page-content">
+  {% if stat %}
+  <div class="stats-grid" style="margin-bottom:16px">
+    <div class="stat-card hud-card">
+      <span class="stat-value mono">{{ stat.total_calls }}</span>
+      <span class="stat-label">calls</span>
+    </div>
+    <div class="stat-card hud-card">
+      <span class="stat-value mono">{{ (stat.success_rate * 100)|round|int if stat.success_rate is not none else '?' }}%</span>
+      <span class="stat-label">success rate</span>
+    </div>
+    <div class="stat-card hud-card">
+      <span class="stat-value mono">{{ stat.avg_confidence or '?' }}</span>
+      <span class="stat-label">avg confidence</span>
+    </div>
+    <div class="stat-card hud-card">
+      <span class="stat-value mono">{{ stat.avg_response_time_ms|round|int if stat.avg_response_time_ms else '?' }}ms</span>
+      <span class="stat-label">avg response</span>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:16px">
+    <div class="detail-block">
+      <h3>Evolution Status</h3>
+      <p>
+        <span class="stat-badge {% if stat.needs_evolution %}warn{% else %}ok{% endif %}">
+          {% if stat.needs_evolution %}[NEEDS EVOLUTION]{% else %}[STABLE]{% endif %}
+        </span>
+        <span class="faint"> {{ stat.reason or '' }}</span>
+      </p>
+    </div>
+  </div>
+  {% else %}
+  <div class="card" style="margin-bottom:16px">
+    <p class="faint">No statistics available for this task yet.</p>
+  </div>
+  {% endif %}
+
+  <div id="evolve-progress" class="progress-panel" style="display:none;margin-bottom:16px">
+    <div class="step active">Working...</div>
+  </div>
+  <div id="evolve-result" style="display:none;margin-bottom:16px"></div>
+
+  <div class="section-divider"><span>CORRECTIONS</span></div>
+  {% if corrections %}
+  <table class="data-table">
+    <thead>
+      <tr><th>Time</th><th>Detail</th><th>Confidence</th></tr>
+    </thead>
+    <tbody>
+      {% for c in corrections %}
+      <tr>
+        <td class="mono faint">{{ (c.created_at or '')[:19] }}</td>
+        <td class="faint">{{ (c.correction_detail or '')[:100] }}</td>
+        <td class="mono">{{ c.confidence_reported or '?' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state">
+    <div class="empty-icon" data-lucide="check"></div>
+    <h2>No corrections</h2>
+    <p>No user corrections have been logged for this task.</p>
+  </div>
+  {% endif %}
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function previewEvolve() {
+  var progress = document.getElementById('evolve-progress');
+  var result = document.getElementById('evolve-result');
+  progress.style.display = 'block';
+  result.style.display = 'none';
+
+  fetch('/api/ai/evolve/preview', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({task: '{{ task }}'})
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    progress.style.display = 'none';
+    if (d.preview) {
+      result.innerHTML = '<div class="card"><div class="detail-block"><h3>Evolution Preview</h3><pre style="white-space:pre-wrap;font-family:var(--font-mono);font-size:var(--text-sm);color:var(--text-secondary);max-height:400px;overflow:auto">' + (d.preview.suggested || JSON.stringify(d.preview, null, 2)) + '</pre></div></div>';
+    } else {
+      result.innerHTML = '<div class="step fail">[FAIL] ' + (d.error || 'Preview failed') + '</div>';
+    }
+    result.style.display = 'block';
+  }).catch(function(e) {
+    progress.style.display = 'none';
+    result.innerHTML = '<div class="step fail">[FAIL] ' + e.message + '</div>';
+    result.style.display = 'block';
+  });
+}
+
+function runEvolve() {
+  if (!confirm('Run prompt evolution for {{ task }}? This will modify the prompt file.')) return;
+  var progress = document.getElementById('evolve-progress');
+  var result = document.getElementById('evolve-result');
+  progress.style.display = 'block';
+  result.style.display = 'none';
+
+  fetch('/api/ai/evolve/run', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({task: '{{ task }}'})
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    progress.style.display = 'none';
+    if (d.evolved) {
+      result.innerHTML = '<div class="step ok">[OK] Evolution complete! Version: ' + (d.version || '?') + '</div>';
+    } else {
+      result.innerHTML = '<div class="step fail">[FAIL] ' + (d.error || 'Evolution failed') + '</div>';
+    }
+    result.style.display = 'block';
+  }).catch(function(e) {
+    progress.style.display = 'none';
+    result.innerHTML = '<div class="step fail">[FAIL] ' + e.message + '</div>';
+    result.style.display = 'block';
+  });
+}
+</script>
+{% endblock %}

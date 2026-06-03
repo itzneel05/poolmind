@@ -1,0 +1,25 @@
+{% extends "layout.html" %}
+{% block title %}— Taxonomy{% endblock %}
+{% block content %}
+<header class="page-header">
+  <h1 class="page-title">Taxonomy</h1>
+  <div class="page-actions">
+    <a href="/settings" class="btn btn-secondary">Settings</a>
+  </div>
+</header>
+
+<section class="page-content">
+  {% for section, items in taxonomy.items() %}
+  <div class="section-divider"><span>{{ section|upper }}</span></div>
+  <div class="card" style="margin-bottom:16px">
+    <div class="tags" style="display:flex;flex-wrap:wrap;gap:4px">
+      {% for item in items %}
+      <span class="tag">{{ item }}</span>
+      {% else %}
+      <span class="faint">No entries</span>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+</section>
+{% endblock %}

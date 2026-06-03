@@ -1,0 +1,69 @@
+{% extends "layout.html" %}
+{% block title %}— {{ path.path_name }}{% endblock %}
+{% block content %}
+<header class="page-header">
+  <div>
+    <div class="breadcrumb">
+      <a href="/intelligence/paths">Paths</a> / <span class="faint">{{ path.id }}</span>
+    </div>
+    <h1 class="page-title">{{ path.path_name }}</h1>
+  </div>
+  <div class="page-actions">
+    <button class="btn btn-danger" onclick="deletePath('{{ path.id }}')">Delete</button>
+  </div>
+</header>
+
+<section class="page-content">
+  <div class="card" style="margin-bottom:16px">
+    <div class="detail-block">
+      <h3>Goal</h3>
+      <p>{{ path.goal }}</p>
+    </div>
+    <div class="detail-block">
+      <h3>Structure</h3>
+      <p><span class="mono">{{ path.weeks|length }} weeks</span> &middot; Created <span class="faint">{{ (path.created_at or '')[:10] }}</span></p>
+    </div>
+  </div>
+
+  {% for w in path.weeks %}
+  <div class="card" style="margin-bottom:12px">
+    <div class="card-header-inline">
+      <span class="stat-badge ok">Week {{ loop.index }}</span>
+      <span class="faint">{{ w.get('theme', w.get('topic', '')) }}</span>
+    </div>
+    {% if w.get('goal') %}
+    <div class="detail-block"><p class="faint">{{ w.goal }}</p></div>
+    {% endif %}
+    {% if w.resources %}
+    <table class="data-table" style="margin-top:8px">
+      <thead><tr><th>Resource</th><th>Type</th><th>Time</th></tr></thead>
+      <tbody>
+        {% for r in w.resources %}
+        <tr onclick="window.location='/resource/{{ r.resource_id or r.id }}'" class="clickable-row">
+          <td>{{ r.title or r.name or 'Unnamed' }}</td>
+          <td>{{ r.type or '-' }}</td>
+          <td class="mono faint">{{ r.time_to_value or r.estimated_time or '-' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="faint" style="padding:8px 0">No resources in this week.</p>
+    {% endif %}
+  </div>
+  {% endfor %}
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function deletePath(id) {
+  if (!confirm('Delete this learning path?')) return;
+  fetch('/api/paths/' + id, {method: 'DELETE'})
+    .then(function(r) { return r.json(); }).then(function(d) {
+      toast('Path deleted', 'success');
+      window.location = '/intelligence/paths';
+    }).catch(function(e) { toast(e.message, 'error'); });
+}
+</script>
+{% endblock %}

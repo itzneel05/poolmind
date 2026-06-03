@@ -1,0 +1,41 @@
+# poolmind settings v1.0
+
+app:
+  name: poolmind
+  version: "1.0.0"
+  schema_version: "1.0"
+
+paths:
+  db: "${POOLMIND_DB_PATH}"
+  vault: "${OBSIDIAN_VAULT_PATH}"
+  cache: "data/cache"
+  prompts: "prompts"
+
+ai:
+  enabled: true
+  provider: freellmapi
+  confidence_threshold: 70
+  cache_responses: true
+  disable_for_sensitive: false
+
+ingestion:
+  dedupe_title_threshold: 85
+  auto_mirror_wayback: true
+  link_check_interval_days: 90
+  stale_repo_months: 12
+
+sync:
+  notion_enabled: true
+  obsidian_enabled: true
+  notion_batch_size: 10
+  notion_rate_limit_sleep: 0.35
+
+search:
+  default_result_limit: 10
+  fts_weight_title: 2.0
+  fts_weight_summary: 1.5
+  fts_weight_tags: 1.0
+
+display:
+  rich_output: true
+  truncate_summary: 120

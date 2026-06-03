@@ -1,0 +1,234 @@
+{% extends "layout.html" %}
+{% block title %}— Settings{% endblock %}
+{% block content %}
+<header class="page-header">
+  <h1 class="page-title">Settings</h1>
+  <div class="page-actions">
+    <a href="/settings/taxonomy" class="btn btn-secondary">Taxonomy</a>
+  </div>
+</header>
+
+<section class="page-content">
+  <div class="section-divider"><span>CONFIGURATION</span></div>
+  {% if config %}
+  <table class="data-table" style="margin-bottom:16px">
+    <thead><tr><th>Key</th><th>Value</th><th></th></tr></thead>
+    <tbody>
+      {% for k, v in config.items() %}
+      <tr>
+        <td class="mono">{{ k }}</td>
+        <td class="faint">{{ v[:80] if v else '<empty>' }}</td>
+        <td><button class="btn btn-ghost" onclick="editConfig('{{ k }}', '{{ v|e }}')">Edit</button></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="card" style="margin-bottom:16px">
+    <p class="faint">No configuration values set yet. They will appear here as you use the application.</p>
+  </div>
+  {% endif %}
+
+  <div class="section-divider"><span>ENVIRONMENT</span></div>
+  <table class="data-table" style="margin-bottom:16px">
+    <thead><tr><th>Variable</th><th>Value</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+      {% for k, v in env.items() %}
+      <tr>
+        <td class="mono">{{ k }}</td>
+        <td class="mono faint" style="max-width:300px;overflow:hidden;text-overflow:ellipsis">{{ v.value[:60] if v.value else '&mdash;' }}</td>
+        <td><span class="state-badge {% if v.set %}ok{% else %}warn{% endif %}">{% if v.set %}[ACTIVE]{% elif v.in_file %}[FILE]{% else %}[MISSING]{% endif %}</span></td>
+        <td><button class="btn btn-ghost" onclick="editEnv('{{ k }}', '{{ v.value|e }}')">Edit</button></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="section-divider"><span>NOTION SYNC</span></div>
+  <div class="card" style="margin-bottom:16px">
+    <div class="stats-grid" style="margin-bottom:12px">
+      <div class="stat-card hud-card" style="padding:8px 16px">
+        <span class="stat-value mono">{% if env.NOTION_TOKEN.set %}[TOKEN SET]{% else %}[NO TOKEN]{% endif %}</span>
+        <span class="stat-label">API token</span>
+      </div>
+      <div class="stat-card hud-card" style="padding:8px 16px">
+        <span class="stat-value mono">{% if env.NOTION_DATABASE.set %}[DB SET]{% else %}[NO DB]{% endif %}</span>
+        <span class="stat-label">Database</span>
+      </div>
+      <div class="stat-card hud-card" style="padding:8px 16px">
+        <span class="stat-value mono">{% if env.NOTION_SYNC_ENABLED.value == 'true' %}[ENABLED]{% else %}[DISABLED]{% endif %}</span>
+        <span class="stat-label">Auto-sync</span>
+      </div>
+    </div>
+    <table class="data-table">
+      <thead><tr><th>Field</th><th>Value</th><th></th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="mono">NOTION_TOKEN</td>
+          <td class="mono faint">{% if env.NOTION_TOKEN.value %}{{ env.NOTION_TOKEN.value[:8] }}...{% else %}<span class="faint">not set</span>{% endif %}</td>
+          <td><button class="btn btn-ghost" onclick="editEnv('NOTION_TOKEN', '')">Set</button></td>
+        </tr>
+        <tr>
+          <td class="mono">NOTION_DATABASE</td>
+          <td class="mono faint">{% if env.NOTION_DATABASE.value %}{{ env.NOTION_DATABASE.value }}{% else %}<span class="faint">not set</span>{% endif %}</td>
+          <td><button class="btn btn-ghost" onclick="editEnv('NOTION_DATABASE', '{{ env.NOTION_DATABASE.value|e }}')">Edit</button></td>
+        </tr>
+        <tr>
+          <td class="mono">NOTION_SYNC_ENABLED</td>
+          <td><span class="state-badge {% if env.NOTION_SYNC_ENABLED.value == 'true' %}ok{% else %}warn{% endif %}">{% if env.NOTION_SYNC_ENABLED.value == 'true' %}enabled{% else %}disabled{% endif %}</span></td>
+          <td>
+            {% if env.NOTION_SYNC_ENABLED.value == 'true' %}
+            <button class="btn btn-ghost" onclick="editEnv('NOTION_SYNC_ENABLED', 'false')">Disable</button>
+            {% else %}
+            <button class="btn btn-ghost" onclick="editEnv('NOTION_SYNC_ENABLED', 'true')">Enable</button>
+            {% endif %}
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button class="btn btn-secondary" onclick="testNotion()">Test connection</button>
+      <a href="/maintenance/sync" class="btn btn-ghost">Sync dashboard</a>
+    </div>
+    <div id="notion-test-result" style="display:none;margin-top:8px"></div>
+  </div>
+
+  <div class="section-divider"><span>DATA</span></div>
+  <div class="card">
+    <p class="faint">Database and resource operations.</p>
+    <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+      <button class="btn btn-ghost" onclick="exportData()">Export JSON</button>
+    </div>
+  </div>
+</section>
+
+<div class="modal-overlay" id="config-modal" style="display:none">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Edit Config</h2>
+      <button class="modal-close" onclick="closeModal('config-modal')">x</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Key</label>
+        <input type="text" id="cfg-key" class="form-input" readonly>
+      </div>
+      <div class="form-group">
+        <label>Value</label>
+        <input type="text" id="cfg-value" class="form-input">
+      </div>
+      <div id="cfg-result" style="display:none;margin-bottom:8px"></div>
+      <div class="form-actions">
+        <button class="btn btn-ghost" onclick="closeModal('config-modal')">Cancel</button>
+        <button class="btn btn-primary" onclick="saveConfig()">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="env-modal" style="display:none">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Edit Environment Variable</h2>
+      <button class="modal-close" onclick="closeModal('env-modal')">x</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Variable</label>
+        <input type="text" id="env-key" class="form-input" readonly>
+      </div>
+      <div class="form-group">
+        <label>Value</label>
+        <input type="text" id="env-value" class="form-input" placeholder="Enter value">
+      </div>
+      <div class="form-group faint" style="font-size:var(--text-sm)">
+        Saves to <code>.env</code> file. Changes apply immediately and persist across restarts.
+      </div>
+      <div id="env-result" style="display:none;margin-bottom:8px"></div>
+      <div class="form-actions">
+        <button class="btn btn-ghost" onclick="closeModal('env-modal')">Cancel</button>
+        <button class="btn btn-primary" onclick="saveEnv()">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function editConfig(key, value) {
+  document.getElementById('cfg-key').value = key;
+  document.getElementById('cfg-value').value = value;
+  document.getElementById('cfg-result').style.display = 'none';
+  document.getElementById('config-modal').style.display = 'flex';
+}
+function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+function saveConfig() {
+  var key = document.getElementById('cfg-key').value;
+  var value = document.getElementById('cfg-value').value;
+  var result = document.getElementById('cfg-result');
+  fetch('/api/settings', {
+    method: 'PATCH',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({key: key, value: value})
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    result.innerHTML = '<div class="step ok">[OK] Saved</div>';
+    result.style.display = 'block';
+    setTimeout(function() { window.location.reload(); }, 1000);
+  }).catch(function(e) {
+    result.innerHTML = '<div class="step fail">[FAIL] ' + e.message + '</div>';
+    result.style.display = 'block';
+  });
+}
+function editEnv(key, value) {
+  document.getElementById('env-key').value = key;
+  document.getElementById('env-value').value = value;
+  document.getElementById('env-result').style.display = 'none';
+  document.getElementById('env-modal').style.display = 'flex';
+}
+function saveEnv() {
+  var key = document.getElementById('env-key').value;
+  var value = document.getElementById('env-value').value;
+  var result = document.getElementById('env-result');
+  fetch('/api/settings/env', {
+    method: 'PATCH',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({key: key, value: value})
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    if (d.error) {
+      result.innerHTML = '<div class="step fail">[FAIL] ' + d.error + '</div>';
+    } else {
+      result.innerHTML = '<div class="step ok">[OK] Saved to .env</div>';
+    }
+    result.style.display = 'block';
+    setTimeout(function() { window.location.reload(); }, 1200);
+  }).catch(function(e) {
+    result.innerHTML = '<div class="step fail">[FAIL] ' + e.message + '</div>';
+    result.style.display = 'block';
+  });
+}
+function testNotion() {
+  var result = document.getElementById('notion-test-result');
+  result.style.display = 'block';
+  result.innerHTML = '<div class="step active">Testing Notion connection...</div>';
+  fetch('/api/sync/notion/status')
+    .then(function(r) { return r.json(); }).then(function(d) {
+      if (d.status && d.status.configured) {
+        result.innerHTML = '<div class="step ok">[OK] Notion configured (' + d.status.unsynced_count + ' pending)</div>';
+      } else {
+        var msg = 'Not configured';
+        if (d.status) {
+          if (!d.status.has_token) msg = 'NOTION_TOKEN is missing';
+          else if (!d.status.has_database) msg = 'NOTION_DATABASE is missing';
+        }
+        result.innerHTML = '<div class="step fail">[FAIL] ' + msg + '</div>';
+      }
+    }).catch(function(e) {
+      result.innerHTML = '<div class="step fail">[FAIL] ' + e.message + '</div>';
+    });
+}
+function exportData() {
+  window.location.href = '/api/resources?limit=9999';
+}
+</script>
+{% endblock %}

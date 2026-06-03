@@ -1,0 +1,275 @@
+# poolmind taxonomy v1.0
+
+resource_types:
+  - article
+  - tutorial
+  - writeup
+  - tool
+  - repository
+  - cheatsheet
+  - book
+  - course
+  - video
+  - playlist
+  - paper
+  - report
+  - dataset
+  - lab
+  - ctf
+  - framework
+  - table
+  - index
+  - ranking
+  - note
+  - thread
+  - newsletter
+  - podcast
+  - interview
+  - config
+  - template
+  - extension
+  - dashboard
+  - search_engine
+  - api
+  - community
+  - event
+  - certification
+  - glossary
+  - mindmap
+  - other
+
+domains:
+  - web
+  - network
+  - mobile
+  - cloud
+  - api
+  - wireless
+  - iot
+  - osint
+  - soc
+  - blueteam
+  - redteam
+  - purpleteam
+  - malware
+  - forensics
+  - cryptography
+  - reverse_engineering
+  - exploit_dev
+  - social_engineering
+  - physical
+  - governance
+  - privacy
+  - ai_security
+  - supply_chain
+  - devsecops
+  - identity
+  - blockchain
+  - ics_ot
+  - career
+  - general
+
+skill_levels:
+  - beginner
+  - intermediate
+  - advanced
+  - expert
+  - all
+
+skill_progression:
+  - absolute-beginner
+  - curious-self-learner
+  - student
+  - junior-pentester
+  - intermediate-pentester
+  - senior-pentester
+  - red-team-operator
+  - researcher
+  - industry-expert
+
+formats:
+  - text
+  - video
+  - interactive
+  - audio
+  - tool
+  - hands-on
+  - mixed
+
+costs:
+  - free
+  - freemium
+  - paid
+  - one-time
+  - subscription
+
+temporal_relevance:
+  - evergreen
+  - time-sensitive
+  - historical
+  - emerging
+
+consumption_states:
+  - saved
+  - skimmed
+  - studied
+  - mastered
+  - applied
+
+source_platforms:
+  - github
+  - medium
+  - youtube
+  - arxiv
+  - personal_blog
+  - hackerone
+  - bugcrowd
+  - intigriti
+  - portswigger
+  - tryhackme
+  - hackthebox
+  - twitter
+  - reddit
+  - discord
+  - vimeo
+  - notion
+  - gitbook
+  - confluence
+  - substack
+  - pdf
+  - other
+
+url_patterns:
+  github.com:
+    type: repository
+    platform: github
+  youtube.com:
+    type: video
+    platform: youtube
+  youtu.be:
+    type: video
+    platform: youtube
+  medium.com:
+    type: article
+    platform: medium
+  arxiv.org:
+    type: paper
+    platform: arxiv
+  hackerone.com/reports:
+    type: writeup
+    platform: hackerone
+  bugcrowd.com:
+    type: writeup
+    platform: bugcrowd
+  portswigger.net/web-security:
+    type: tutorial
+    platform: portswigger
+  tryhackme.com:
+    type: lab
+    platform: tryhackme
+  hackthebox.com:
+    type: lab
+    platform: hackthebox
+  app.hackthebox.com:
+    type: lab
+    platform: hackthebox
+  reddit.com:
+    type: community
+    platform: reddit
+  twitter.com:
+    type: thread
+    platform: twitter
+  x.com:
+    type: thread
+    platform: twitter
+
+domain_keywords:
+  web:
+    - xss
+    - sqli
+    - sql injection
+    - csrf
+    - ssrf
+    - xxe
+    - idor
+    - lfi
+    - rfi
+    - owasp
+    - web app
+    - http
+    - burp
+  cloud:
+    - aws
+    - azure
+    - gcp
+    - s3
+    - lambda
+    - kubernetes
+    - k8s
+    - docker
+    - iam
+    - cloud
+  mobile:
+    - android
+    - ios
+    - apk
+    - frida
+    - mobsf
+    - mobile
+  network:
+    - nmap
+    - wireshark
+    - packet
+    - firewall
+    - vpn
+    - dns
+    - network
+  malware:
+    - malware
+    - ransomware
+    - trojan
+    - reverse engineering
+    - ghidra
+    - ida
+    - yara
+  osint:
+    - osint
+    - recon
+    - shodan
+    - censys
+    - footprint
+  redteam:
+    - red team
+    - adversary
+    - c2
+    - command and control
+    - lateral movement
+    - persistence
+  blueteam:
+    - blue team
+    - siem
+    - soc
+    - detection
+    - incident response
+    - dfir
+  exploit_dev:
+    - exploit
+    - buffer overflow
+    - rop
+    - heap
+    - pwn
+    - shellcode
+  identity:
+    - oauth
+    - saml
+    - jwt
+    - sso
+    - iam
+    - authentication
+    - authorization
+  ai_security:
+    - llm
+    - prompt injection
+    - ai security
+    - ml security
+    - jailbreak

@@ -1,0 +1,159 @@
+{% extends "layout.html" %}
+{% block title %}— Manual Entry{% endblock %}
+{% block content %}
+<header class="page-header">
+  <h1 class="page-title">+ Add Manual Resource</h1>
+  <div class="page-actions">
+    <a href="/add" class="btn btn-ghost">Quick URL</a>
+  </div>
+</header>
+
+<section class="page-content">
+  <div class="form-card">
+    <form id="manual-form" onsubmit="return addManual(event)">
+      <div class="form-group">
+        <label for="title">Title *</label>
+        <input type="text" id="title" name="title" required class="form-input" placeholder="Resource title">
+      </div>
+
+      <details class="form-section" open>
+        <summary>Required</summary>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="type">Type</label>
+            <select id="type" name="type" class="form-input">
+              <option value="article">Article</option><option value="video">Video</option>
+              <option value="course">Course</option><option value="book">Book</option>
+              <option value="tool">Tool</option><option value="writeup">Writeup</option>
+              <option value="repo">Repository</option><option value="note">Note</option>
+              <option value="cheatsheet">Cheatsheet</option><option value="lab">Lab</option>
+              <option value="talk">Talk</option><option value="podcast">Podcast</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="domain">Domain</label>
+            <select id="domain" name="domain" class="form-input">
+              <option value="general">General</option><option value="web">Web</option>
+              <option value="network">Network</option><option value="cloud">Cloud</option>
+              <option value="mobile">Mobile</option><option value="malware">Malware</option>
+              <option value="forensics">Forensics</option><option value="crypto">Crypto</option>
+              <option value="red_team">Red Team</option><option value="blue_team">Blue Team</option>
+              <option value="recon">Recon</option><option value="social">Social Engineering</option>
+            </select>
+          </div>
+        </div>
+      </details>
+
+      <details class="form-section">
+        <summary>Classification</summary>
+        <div class="form-group">
+          <label for="subdomain">Subdomain</label>
+          <input type="text" id="subdomain" name="subdomain" class="form-input" placeholder="e.g. xss, sqli">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="skill_level">Skill level</label>
+            <select id="skill_level" name="skill_level" class="form-input">
+              <option value="beginner">Beginner</option><option value="intermediate" selected>Intermediate</option>
+              <option value="advanced">Advanced</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="format">Format</label>
+            <select id="format" name="format" class="form-input">
+              <option value="text">Text</option><option value="video">Video</option>
+              <option value="interactive">Interactive</option><option value="audio">Audio</option>
+              <option value="tool">Tool</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="cost">Cost</label>
+            <select id="cost" name="cost" class="form-input">
+              <option value="free">Free</option><option value="freemium">Freemium</option>
+              <option value="paid">Paid</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="tags">Tags <span class="faint">(comma separated)</span></label>
+          <input type="text" id="tags" name="tags" class="form-input" placeholder="xss, sqli, recon">
+        </div>
+      </details>
+
+      <details class="form-section">
+        <summary>Context</summary>
+        <div class="form-group">
+          <label for="url">URL</label>
+          <input type="url" id="url" name="url" class="form-input" placeholder="https://... (or leave as local)">
+        </div>
+        <div class="form-group">
+          <label for="summary">Summary</label>
+          <textarea id="summary" name="summary" rows="3" class="form-input"></textarea>
+        </div>
+        <div class="form-group">
+          <label for="why_it_matters">Why it matters</label>
+          <textarea id="why_it_matters" name="why_it_matters" rows="2" class="form-input"></textarea>
+        </div>
+        <div class="form-group">
+          <label for="notes">Notes</label>
+          <textarea id="notes" name="notes" rows="3" class="form-input"></textarea>
+        </div>
+      </details>
+
+      <div class="form-actions">
+        <a href="/resources" class="btn btn-ghost">Cancel</a>
+        <button type="submit" class="btn btn-primary" id="submit-btn">Save Resource</button>
+      </div>
+    </form>
+
+    <div id="result" style="display:none" class="result-panel"></div>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function addManual(e) {
+  e.preventDefault();
+  var title = document.getElementById('title').value.trim();
+  if (!title) { toast('Title is required', 'error'); return false; }
+  var btn = document.getElementById('submit-btn');
+  btn.disabled = true; btn.textContent = 'Saving...';
+
+  var data = {
+    title: title,
+    type: document.getElementById('type').value,
+    domain: document.getElementById('domain').value,
+    subdomain: document.getElementById('subdomain').value,
+    skill_level: document.getElementById('skill_level').value,
+    format: document.getElementById('format').value,
+    cost: document.getElementById('cost').value,
+    tags: document.getElementById('tags').value.split(',').map(function(t) { return t.trim(); }).filter(Boolean),
+    url: document.getElementById('url').value || 'local',
+    summary: document.getElementById('summary').value,
+    why_it_matters: document.getElementById('why_it_matters').value,
+    notes: document.getElementById('notes').value,
+  };
+
+  try {
+    var resp = await fetch('/api/add/manual', {
+      method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data)
+    });
+    var r = await resp.json();
+    if (resp.ok) {
+      var rc = document.getElementById('result');
+      rc.style.display = 'block';
+      rc.innerHTML = '<div class="section-divider"><span>ADDED</span></div>' +
+        '<div class="result-item"><div class="result-title">' + r.resource.title + '</div>' +
+        '<div class="result-meta"><span class="mono faint">' + r.resource.id + '</span></div>' +
+        '<div class="result-actions"><a href="/resource/' + r.resource.id + '" class="btn btn-primary">View</a>' +
+        '<a href="/add/manual" class="btn btn-secondary">Add another</a></div></div>';
+    } else {
+      toast(r.error || 'Save failed', 'error');
+    }
+  } catch(err) { toast(err.message, 'error'); }
+  btn.disabled = false; btn.textContent = 'Save Resource';
+  return false;
+}
+</script>
+{% endblock %}

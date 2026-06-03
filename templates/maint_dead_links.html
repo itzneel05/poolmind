@@ -1,0 +1,91 @@
+{% extends "layout.html" %}
+{% block title %}— Dead Links{% endblock %}
+{% block content %}
+<header class="page-header">
+  <h1 class="page-title">Dead Links</h1>
+  <div class="page-actions">
+    <button class="btn btn-primary" onclick="checkDeadLinks()">Check now</button>
+    <span class="mono faint">{{ dead_links|length }} link(s)</span>
+  </div>
+</header>
+
+<section class="page-content">
+  <div id="dead-progress" class="progress-panel" style="display:none;margin-bottom:16px">
+    <div class="step active">Checking links...</div>
+  </div>
+  <div id="dead-result" style="display:none;margin-bottom:16px"></div>
+
+  {% if dead_links %}
+  <table class="data-table">
+    <thead>
+      <tr><th>Resource</th><th>URL</th><th>Status</th><th>Checked</th><th>Wayback</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for d in dead_links %}
+      <tr>
+        <td><a href="/resource/{{ d.resource_id }}" class="mono faint">{{ d.resource_id }}</a></td>
+        <td class="mono" style="max-width:300px;overflow:hidden;text-overflow:ellipsis">{{ d.url[:60] }}</td>
+        <td>
+          {% if d.resolved %}
+          <span class="state-badge ok">Resolved</span>
+          {% elif d.http_status %}
+          <span class="state-badge warn">{{ d.http_status }}</span>
+          {% else %}
+          <span class="state-badge">Dead</span>
+          {% endif %}
+        </td>
+        <td class="faint">{{ (d.checked_at or '')[:16] }}</td>
+        <td><a href="{{ d.wayback_url }}" target="_blank" class="btn btn-ghost">Wayback</a></td>
+        <td>
+          {% if not d.resolved %}
+          <button class="btn btn-ghost" onclick="markResolved({{ d.id }})">[Resolve]</button>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state">
+    <div class="empty-icon" data-lucide="link"></div>
+    <h2>No dead links</h2>
+    <p>All checked links appear to be alive.</p>
+  </div>
+  {% endif %}
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function checkDeadLinks() {
+  var progress = document.getElementById('dead-progress');
+  var result = document.getElementById('dead-result');
+  progress.style.display = 'block';
+  result.style.display = 'none';
+
+  fetch('/api/dead-check', {method: 'POST'})
+    .then(function(r) { return r.json(); }).then(function(d) {
+      progress.style.display = 'none';
+      var msg = 'Checked ' + (d.dead_check ? d.dead_check.checked : '?') + ' links, ' + (d.dead_check ? d.dead_check.dead.length : '?') + ' dead';
+      result.innerHTML = '<div class="step ok">[OK] ' + msg + '</div>';
+      result.style.display = 'block';
+      setTimeout(function() { window.location.reload(); }, 2000);
+    }).catch(function(e) {
+      progress.style.display = 'none';
+      result.innerHTML = '<div class="step fail">[FAIL] ' + e.message + '</div>';
+      result.style.display = 'block';
+    });
+}
+
+function markResolved(id) {
+  fetch('/api/dead-links', {
+    method: 'PATCH',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({id: id, resolved: true})
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    toast('Marked resolved', 'success');
+    window.location.reload();
+  }).catch(function(e) { toast(e.message, 'error'); });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,37 @@
+{% extends "layout.html" %}
+{% block title %}— Random Gem{% endblock %}
+{% block content %}
+<header class="page-header">
+  <h1 class="page-title">Random Gem</h1>
+  <div class="page-actions">
+    <a href="/resources/random" class="btn btn-primary">Another one</a>
+  </div>
+</header>
+
+<section class="page-content">
+  {% if resource %}
+  <div class="gem-card" onclick="window.location='/resource/{{ resource.id }}'">
+    <div class="gem-title">{{ resource.title }}</div>
+    <div class="gem-meta">
+      <span class="mono">{{ resource.id }}</span> |
+      {{ resource.domain }} | {{ resource.type }} |
+      <span class="state-badge {{ resource.consumption_state }}">{{ resource.consumption_state }}</span>
+    </div>
+    {% if resource.summary %}
+    <div class="gem-summary">{{ resource.summary[:300] }}</div>
+    {% endif %}
+    <div class="gem-footer">
+      {% if resource.quality_score %}<span>Quality: {{ resource.quality_score }}/10</span>{% endif %}
+      {% if resource.times_used %}<span>Used: {{ resource.times_used }}x</span>{% endif %}
+    </div>
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <div class="empty-icon" data-lucide="package"></div>
+    <h2>Pool is empty.</h2>
+    <p>Add some resources first.</p>
+    <a href="/add" class="btn btn-primary">+ Add your first</a>
+  </div>
+  {% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,66 @@
+{% extends "layout.html" %}
+{% block title %}— Resources{% endblock %}
+{% block content %}
+<header class="page-header">
+  <h1 class="page-title">Resources</h1>
+  <div class="page-actions">
+    <span class="mono faint">{{ resources|length }} resources</span>
+    <a href="/add" class="btn btn-primary">+ Add</a>
+  </div>
+</header>
+
+<section class="page-content">
+  <form class="filter-bar" method="get" action="/resources">
+    <select name="domain" class="filter-select">
+      <option value="">All Domains</option>
+      {% for d in domains %}
+      <option value="{{ d }}" {% if d == current_domain %}selected{% endif %}>{{ d }}</option>
+      {% endfor %}
+    </select>
+    <select name="type" class="filter-select">
+      <option value="">All Types</option>
+      {% for t in types %}
+      <option value="{{ t }}" {% if t == current_type %}selected{% endif %}>{{ t }}</option>
+      {% endfor %}
+    </select>
+    <select name="state" class="filter-select">
+      <option value="">All States</option>
+      <option value="saved" {% if current_state == 'saved' %}selected{% endif %}>Saved</option>
+      <option value="skimmed" {% if current_state == 'skimmed' %}selected{% endif %}>Skimmed</option>
+      <option value="studied" {% if current_state == 'studied' %}selected{% endif %}>Studied</option>
+      <option value="mastered" {% if current_state == 'mastered' %}selected{% endif %}>Mastered</option>
+      <option value="applied" {% if current_state == 'applied' %}selected{% endif %}>Applied</option>
+    </select>
+    <button type="submit" class="btn btn-secondary">Filter</button>
+  </form>
+
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Title</th>
+        <th>Domain</th>
+        <th>Type</th>
+        <th>Level</th>
+        <th class="num">Q</th>
+        <th>State</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in resources %}
+      <tr onclick="window.location='/resource/{{ r.id }}'" class="clickable-row">
+        <td class="mono faint">{{ r.id }}</td>
+        <td>{{ r.title[:60] }}</td>
+        <td>{{ r.domain }}</td>
+        <td><span class="type-chip {{ r.type }}">{{ r.type }}</span></td>
+        <td>{{ r.skill_level }}</td>
+        <td class="num mono">{{ r.quality_score or '-' }}</td>
+        <td><span class="state-badge {{ r.consumption_state }}">{{ r.consumption_state }}</span></td>
+      </tr>
+      {% else %}
+      <tr><td colspan="7" class="empty-cell">No resources found.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

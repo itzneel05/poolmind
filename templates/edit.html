@@ -1,0 +1,115 @@
+{% extends "layout.html" %}
+{% block title %}— Edit {{ resource.title[:40] }}{% endblock %}
+{% block content %}
+<header class="page-header">
+  <h1 class="page-title">Edit: {{ resource.title[:50] }}</h1>
+  <div class="page-actions">
+    <a href="/resource/{{ resource.id }}" class="btn btn-ghost">Cancel</a>
+  </div>
+</header>
+
+<section class="page-content">
+  <div class="form-card">
+    <form id="edit-form" onsubmit="return saveEdit('{{ resource.id }}')">
+      <div class="form-group">
+        <label>Title</label>
+        <input type="text" id="edit-title" class="form-input" value="{{ resource.title }}">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Type</label>
+          <select id="edit-type" class="form-input">
+            <option value="article" {% if resource.type == 'article' %}selected{% endif %}>Article</option>
+            <option value="video" {% if resource.type == 'video' %}selected{% endif %}>Video</option>
+            <option value="course" {% if resource.type == 'course' %}selected{% endif %}>Course</option>
+            <option value="book" {% if resource.type == 'book' %}selected{% endif %}>Book</option>
+            <option value="tool" {% if resource.type == 'tool' %}selected{% endif %}>Tool</option>
+            <option value="writeup" {% if resource.type == 'writeup' %}selected{% endif %}>Writeup</option>
+            <option value="repo" {% if resource.type == 'repo' %}selected{% endif %}>Repository</option>
+            <option value="note" {% if resource.type == 'note' %}selected{% endif %}>Note</option>
+            <option value="cheatsheet" {% if resource.type == 'cheatsheet' %}selected{% endif %}>Cheatsheet</option>
+            <option value="lab" {% if resource.type == 'lab' %}selected{% endif %}>Lab</option>
+            <option value="talk" {% if resource.type == 'talk' %}selected{% endif %}>Talk</option>
+            <option value="podcast" {% if resource.type == 'podcast' %}selected{% endif %}>Podcast</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Domain</label>
+          <select id="edit-domain" class="form-input">
+            <option value="general" {% if resource.domain == 'general' %}selected{% endif %}>General</option>
+            <option value="web" {% if resource.domain == 'web' %}selected{% endif %}>Web</option>
+            <option value="network" {% if resource.domain == 'network' %}selected{% endif %}>Network</option>
+            <option value="cloud" {% if resource.domain == 'cloud' %}selected{% endif %}>Cloud</option>
+            <option value="mobile" {% if resource.domain == 'mobile' %}selected{% endif %}>Mobile</option>
+            <option value="malware" {% if resource.domain == 'malware' %}selected{% endif %}>Malware</option>
+            <option value="forensics" {% if resource.domain == 'forensics' %}selected{% endif %}>Forensics</option>
+            <option value="crypto" {% if resource.domain == 'crypto' %}selected{% endif %}>Crypto</option>
+            <option value="red_team" {% if resource.domain == 'red_team' %}selected{% endif %}>Red Team</option>
+            <option value="blue_team" {% if resource.domain == 'blue_team' %}selected{% endif %}>Blue Team</option>
+            <option value="recon" {% if resource.domain == 'recon' %}selected{% endif %}>Recon</option>
+            <option value="social" {% if resource.domain == 'social' %}selected{% endif %}>Social Engineering</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>State</label>
+          <select id="edit-state" class="form-input">
+            {% for s in all_states %}
+            <option value="{{ s }}" {% if s == resource.consumption_state %}selected{% endif %}>{{ s }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>URL</label>
+        <input type="url" id="edit-url" class="form-input" value="{{ resource.url }}">
+      </div>
+      <div class="form-group">
+        <label>Summary</label>
+        <textarea id="edit-summary" rows="4" class="form-input">{{ resource.summary or '' }}</textarea>
+      </div>
+      <div class="form-group">
+        <label>Why it matters</label>
+        <textarea id="edit-why" rows="3" class="form-input">{{ resource.why_it_matters or '' }}</textarea>
+      </div>
+      <div class="form-group">
+        <label>Notes</label>
+        <textarea id="edit-notes" rows="4" class="form-input">{{ resource.notes or '' }}</textarea>
+      </div>
+      <div class="form-actions">
+        <a href="/resource/{{ resource.id }}" class="btn btn-ghost">Cancel</a>
+        <button type="submit" class="btn btn-primary">Save changes</button>
+      </div>
+    </form>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function saveEdit(id) {
+  var data = {
+    title: document.getElementById('edit-title').value,
+    type: document.getElementById('edit-type').value,
+    domain: document.getElementById('edit-domain').value,
+    consumption_state: document.getElementById('edit-state').value,
+    url: document.getElementById('edit-url').value,
+    summary: document.getElementById('edit-summary').value,
+    why_it_matters: document.getElementById('edit-why').value,
+    notes: document.getElementById('edit-notes').value,
+  };
+  try {
+    var resp = await fetch('/api/resource/' + id, {
+      method: 'PATCH', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data)
+    });
+    var r = await resp.json();
+    if (resp.ok) {
+      toast('Saved', 'success');
+      window.location = '/resource/' + id;
+    } else {
+      toast(r.error || 'Save failed', 'error');
+    }
+  } catch (err) { toast(err.message, 'error'); }
+  return false;
+}
+</script>
+{% endblock %}

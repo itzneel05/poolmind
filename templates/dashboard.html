@@ -1,0 +1,129 @@
+{% extends "layout.html" %}
+{% block title %}— Dashboard{% endblock %}
+{% block content %}
+<header class="page-header">
+  <h1 class="page-title">Dashboard</h1>
+  <div class="page-actions">
+    <a href="/add" class="btn btn-primary">+ Add resource</a>
+    <a href="/ingest" class="btn btn-secondary">Bulk ingest</a>
+  </div>
+</header>
+
+<section class="page-content">
+  {% if stats and stats.total > 0 %}
+  <div class="stats-grid">
+    <div class="stat-card hud-card">
+      <span class="stat-value mono">{{ stats.total }}</span>
+      <span class="stat-label">resources</span>
+    </div>
+    <div class="stat-card hud-card">
+      <span class="stat-value mono">{{ stats.by_domain|length }}</span>
+      <span class="stat-label">domains</span>
+    </div>
+    <div class="stat-card hud-card">
+      <span class="stat-value mono">{{ stats.dead_links }}</span>
+      <span class="stat-label">dead links</span>
+      <span class="stat-badge {% if stats.dead_links > 0 %}warn{% else %}ok{% endif %}">{% if stats.dead_links > 0 %}[WARN]{% else %}[OK]{% endif %}</span>
+    </div>
+    <div class="stat-card hud-card">
+      <span class="stat-value mono">{{ stats.low_confidence }}</span>
+      <span class="stat-label">low confidence</span>
+      <span class="stat-badge {% if stats.low_confidence > 0 %}warn{% else %}ok{% endif %}">{% if stats.low_confidence > 0 %}[LOW]{% else %}[OK]{% endif %}</span>
+    </div>
+  </div>
+
+  <div class="section-divider"><span>SERVICES</span></div>
+  <div class="stats-grid" style="margin-bottom:24px">
+    <div class="stat-card hud-card">
+      <span class="stat-value mono">{% if ai_status.api_running %}[ONLINE]{% else %}[OFFLINE]{% endif %}</span>
+      <span class="stat-label">AI API</span>
+      <span class="stat-badge {% if ai_status.api_running %}ok{% else %}warn{% endif %}">{% if ai_status.api_running %}freellmapi{% else %}not running{% endif %}</span>
+    </div>
+    <div class="stat-card hud-card">
+      <span class="stat-value mono">{% if notion_status.configured %}[ON]{% else %}[OFF]{% endif %}</span>
+      <span class="stat-label">Notion sync</span>
+      <span class="stat-badge {% if notion_status.configured %}ok{% else %}warn{% endif %}">{% if notion_status.configured %}{{ notion_status.unsynced_count }} pending{% else %}not configured{% endif %}</span>
+    </div>
+    <div class="stat-card hud-card">
+      <span class="stat-value mono">{{ ai_status.total_calls }}</span>
+      <span class="stat-label">AI calls</span>
+      <span class="stat-badge {% if ai_status.needs_evolution > 0 %}warn{% else %}ok{% endif %}">{% if ai_status.needs_evolution > 0 %}{{ ai_status.needs_evolution }} need evolve{% else %}[OK]{% endif %}</span>
+    </div>
+  </div>
+
+  {% if random_gem %}
+  <div class="section-divider"><span>GEM OF THE DAY</span></div>
+  <div class="gem-card" onclick="window.location='/resource/{{ random_gem.id }}'">
+    <div class="gem-title">{{ random_gem.title }}</div>
+    <div class="gem-meta"><span class="mono">{{ random_gem.id }}</span> | {{ random_gem.domain }} | {{ random_gem.type }}</div>
+    <div class="gem-summary">{{ (random_gem.summary or 'No summary yet.')[:200] }}{% if random_gem.summary and random_gem.summary|length > 200 %}...{% endif %}</div>
+  </div>
+  {% endif %}
+
+  <div class="quick-actions">
+    <a href="/add" class="action-card"><span class="action-icon" data-lucide="link"></span> Add URL</a>
+    <a href="/add/manual" class="action-card"><span class="action-icon" data-lucide="file-text"></span> Manual entry</a>
+    <a href="/ingest" class="action-card"><span class="action-icon" data-lucide="upload"></span> Bulk ingest</a>
+    <a href="/resources/random" class="action-card"><span class="action-icon" data-lucide="shuffle"></span> Random gem</a>
+    <a href="/resources/untouched" class="action-card"><span class="action-icon" data-lucide="book-open"></span> Untouched</a>
+    <a href="/resources/recent" class="action-card"><span class="action-icon" data-lucide="clock"></span> Recent</a>
+  </div>
+
+  <div class="grid-2col">
+    <div>
+      <div class="section-divider"><span>BY DOMAIN</span></div>
+      <table class="data-table">
+        <thead><tr><th>Domain</th><th class="num">Count</th></tr></thead>
+        <tbody>
+          {% for d in stats.by_domain[:8] %}
+          <tr onclick="window.location='/resources?domain={{ d.domain }}'">
+            <td>{{ d.domain }}</td>
+            <td class="num mono">{{ d.c }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div>
+      <div class="section-divider"><span>BY STATE</span></div>
+      <table class="data-table">
+        <thead><tr><th>State</th><th class="num">Count</th></tr></thead>
+        <tbody>
+          {% for s in stats.by_state %}
+          <tr onclick="window.location='/resources/by-state/{{ s.consumption_state }}'">
+            <td>{{ s.consumption_state }}</td>
+            <td class="num mono">{{ s.c }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="section-divider"><span>RECENT ADDITIONS</span></div>
+  <table class="data-table">
+    <thead><tr><th>ID</th><th>Title</th><th>Domain</th><th>State</th></tr></thead>
+    <tbody>
+      {% for r in recent %}
+      <tr onclick="window.location='/resource/{{ r.id }}'">
+        <td class="mono faint">{{ r.id }}</td>
+        <td>{{ r.title[:60] }}</td>
+        <td>{{ r.domain }}</td>
+        <td><span class="state-badge {{ r.consumption_state }}">{{ r.consumption_state }}</span></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state">
+    <div class="empty-icon" data-lucide="package"></div>
+    <h2>No resources yet.</h2>
+    <p>Add your first resource to get started.</p>
+    <div class="empty-actions">
+      <a href="/add" class="btn btn-primary">+ Add your first</a>
+      <a href="/ingest" class="btn btn-secondary">Bulk import</a>
+    </div>
+  </div>
+  {% endif %}
+</section>
+{% endblock %}

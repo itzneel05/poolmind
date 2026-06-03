@@ -1,0 +1,76 @@
+{% extends "layout.html" %}
+{% block title %}— {{ stack.stack_name }}{% endblock %}
+{% block content %}
+<header class="page-header">
+  <div>
+    <div class="breadcrumb">
+      <a href="/intelligence/stacks">Stacks</a> / <span class="faint">{{ stack.id }}</span>
+    </div>
+    <h1 class="page-title">{{ stack.stack_name }}</h1>
+  </div>
+  <div class="page-actions">
+    <button class="btn btn-danger" onclick="deleteStack('{{ stack.id }}')">Delete</button>
+  </div>
+</header>
+
+<section class="page-content">
+  <div class="card" style="margin-bottom:16px">
+    {% if stack.mission %}
+    <div class="detail-block">
+      <h3>Mission</h3>
+      <p>{{ stack.mission }}</p>
+    </div>
+    {% endif %}
+    {% if stack.description %}
+    <div class="detail-block">
+      <h3>Description</h3>
+      <p>{{ stack.description }}</p>
+    </div>
+    {% endif %}
+    <div class="detail-block">
+      <h3>Resources</h3>
+      <p><span class="mono">{{ resources|length }} resources</span> &middot; Created <span class="faint">{{ (stack.created_at or '')[:10] }}</span></p>
+    </div>
+  </div>
+
+  {% if resources %}
+  <table class="data-table">
+    <thead>
+      <tr><th>ID</th><th>Title</th><th>Domain</th><th>Type</th><th>Level</th></tr>
+    </thead>
+    <tbody>
+      {% for r in resources %}
+      <tr onclick="window.location='/resource/{{ r.id }}'" class="clickable-row">
+        <td class="mono faint">{{ r.id }}</td>
+        <td>{{ r.title[:60] }}</td>
+        <td>{{ r.domain }}</td>
+        <td><span class="type-chip {{ r.type }}">{{ r.type }}</span></td>
+        <td>{{ r.skill_level }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5" class="empty-cell">No matching resources found in pool.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state">
+    <div class="empty-icon" data-lucide="book-open"></div>
+    <h2>No resources linked</h2>
+    <p>This stack has references to resources that are not in your pool.</p>
+  </div>
+  {% endif %}
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function deleteStack(id) {
+  if (!confirm('Delete this tech stack?')) return;
+  fetch('/api/stacks/' + id, {method: 'DELETE'})
+    .then(function(r) { return r.json(); }).then(function(d) {
+      toast('Stack deleted', 'success');
+      window.location = '/intelligence/stacks';
+    }).catch(function(e) { toast(e.message, 'error'); });
+}
+</script>
+{% endblock %}

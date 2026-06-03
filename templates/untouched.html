@@ -1,0 +1,35 @@
+{% extends "layout.html" %}
+{% block title %}— Untouched{% endblock %}
+{% block content %}
+<header class="page-header">
+  <h1 class="page-title">Untouched Resources</h1>
+  <div class="page-actions">
+    <span class="mono faint">{{ resources|length }} still in saved state</span>
+  </div>
+</header>
+
+<section class="page-content">
+  {% if resources %}
+  <table class="data-table">
+    <thead><tr><th>ID</th><th>Title</th><th>Domain</th><th>Type</th><th>Added</th></tr></thead>
+    <tbody>
+      {% for r in resources %}
+      <tr onclick="window.location='/resource/{{ r.id }}'" class="clickable-row">
+        <td class="mono faint">{{ r.id }}</td>
+        <td>{{ r.title[:60] }}</td>
+        <td>{{ r.domain }}</td>
+        <td><span class="type-chip {{ r.type }}">{{ r.type }}</span></td>
+        <td class="faint">{{ r.added_on[:10] }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state">
+    <div class="empty-icon" data-lucide="check-circle"></div>
+    <h2>All resources have been touched!</h2>
+    <p>Nothing is sitting untouched.</p>
+  </div>
+  {% endif %}
+</section>
+{% endblock %}

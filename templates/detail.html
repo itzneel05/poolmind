@@ -1,0 +1,301 @@
+{% extends "layout.html" %}
+{% block title %}— {{ resource.title[:40] if resource else 'Not Found' }}{% endblock %}
+{% block content %}
+{% if not resource %}
+<div class="empty-state">
+  <div class="empty-icon" data-lucide="package-x"></div>
+  <h2>Resource Not Found</h2>
+  <p>The requested resource does not exist.</p>
+  <a href="/resources" class="btn btn-secondary">Back to resources</a>
+</div>
+{% else %}
+<header class="page-header">
+  <div>
+    <div class="breadcrumb">
+      <a href="/resources">Resources</a> / <span class="faint">{{ resource.id }}</span>
+    </div>
+    <h1 class="page-title">{{ resource.title }}</h1>
+  </div>
+  <div class="page-actions">
+    <a href="{{ resource.url }}" target="_blank" class="btn btn-primary">Open URL</a>
+    <a href="/resource/{{ resource.id }}/edit" class="btn btn-secondary">Edit</a>
+  </div>
+</header>
+
+<section class="page-content">
+  <div class="detail-layout">
+    <div class="detail-main">
+      <div class="card">
+        <div class="card-header-inline">
+          <span class="type-chip {{ resource.type }}">{{ resource.type }}</span>
+          <span class="domain-tag">{{ resource.domain }}</span>
+          {% if resource.subdomain %}<span class="domain-tag">{{ resource.subdomain }}</span>{% endif %}
+        </div>
+
+        {% if resource.summary %}
+        <div class="detail-block">
+          <h3>Summary</h3>
+          <p>{{ resource.summary }}</p>
+        </div>
+        {% endif %}
+
+        {% if resource.why_it_matters %}
+        <div class="detail-block">
+          <h3>Why it matters</h3>
+          <p>{{ resource.why_it_matters }}</p>
+        </div>
+        {% endif %}
+
+        <div class="detail-grid-inline">
+          {% if resource.best_for %}
+          <div class="detail-block">
+            <h3>Best for</h3>
+            <p>{{ resource.best_for }}</p>
+          </div>
+          {% endif %}
+          {% if resource.avoid_if %}
+          <div class="detail-block">
+            <h3>Avoid if</h3>
+            <p>{{ resource.avoid_if }}</p>
+          </div>
+          {% endif %}
+        </div>
+
+        {% if resource.notes %}
+        <div class="detail-block">
+          <h3>Notes</h3>
+          <p style="white-space:pre-wrap">{{ resource.notes }}</p>
+        </div>
+        {% endif %}
+
+        {% if related %}
+        <div class="detail-block">
+          <h3>Related resources</h3>
+          <div class="related-list">
+            {% for r in related %}
+            <a href="/resource/{{ r.id }}" class="related-item">
+              <span class="mono faint">{{ r.id }}</span> {{ r.title[:50] }}
+              <span class="faint">{{ r.type }} | {{ r.domain }}</span>
+            </a>
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="detail-sidebar">
+      <div class="card">
+        <h3>Actions</h3>
+        <div class="sidebar-actions">
+          <div class="action-group">
+            <label>Rating</label>
+            <div class="star-rating" id="star-rating" data-id="{{ resource.id }}">
+              {% for i in range(10, 0, -1) %}
+              <span class="star" data-score="{{ i }}" onclick="setRating('{{ resource.id }}', {{ i }})">☆</span>
+              {% endfor %}
+            </div>
+            {% if resource.personal_rating %}<div class="mono faint">Current: {{ resource.personal_rating }}/10</div>{% endif %}
+          </div>
+
+          <div class="action-group">
+            <label>State</label>
+            <select class="form-input" onchange="setState('{{ resource.id }}', this.value)">
+              {% for s in all_states %}
+              <option value="{{ s }}" {% if s == resource.consumption_state %}selected{% endif %}>{{ s }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="action-group">
+            <label>Tags</label>
+            <div class="tags" id="tags-display">
+              {% for t in resource.tags %}
+              <span class="tag">#{{ t }}</span>
+              {% else %}
+              <span class="faint">No tags</span>
+              {% endfor %}
+            </div>
+            <div style="display:flex;gap:4px;margin-top:8px">
+              <input type="text" id="tag-input" class="form-input" placeholder="Add tag" style="flex:1">
+              <button class="btn btn-ghost" onclick="addTag('{{ resource.id }}')">+</button>
+            </div>
+          </div>
+
+          <div class="action-group">
+            <label>Notes</label>
+            <textarea id="note-input" rows="3" class="form-input" placeholder="Add a note...">{{ resource.notes or '' }}</textarea>
+            <button class="btn btn-secondary" style="margin-top:6px;width:100%" onclick="saveNote('{{ resource.id }}')">Save note</button>
+          </div>
+
+          <hr class="divider">
+
+          <button class="btn btn-ghost" onclick="markUsed('{{ resource.id }}')">Mark used</button>
+          <button class="btn btn-ghost" onclick="openCorrectModal('{{ resource.id }}')">Correct AI field</button>
+          <button class="btn btn-ghost" onclick="archiveResource('{{ resource.id }}')">Archive</button>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:16px">
+        <h3>Metadata</h3>
+        <table class="meta-table">
+          <tr><td>ID</td><td class="mono faint">{{ resource.id }}</td></tr>
+          <tr><td>Skill</td><td>{{ resource.skill_level }}</td></tr>
+          <tr><td>Format</td><td>{{ resource.format }}</td></tr>
+          <tr><td>Cost</td><td>{{ resource.cost }}</td></tr>
+          <tr><td>Time</td><td>{{ resource.time_to_value }}</td></tr>
+          {% if resource.quality_score %}<tr><td>Quality</td><td>{{ resource.quality_score }}/10</td></tr>{% endif %}
+          {% if resource.ai_confidence %}<tr><td>AI conf</td><td class="mono">{{ resource.ai_confidence }}%</td></tr>{% endif %}
+          <tr><td>Used</td><td class="mono">{{ resource.times_used }}x</td></tr>
+          <tr><td>Added</td><td class="faint">{{ resource.added_on[:10] }}</td></tr>
+          <tr><td>Source</td><td>{{ resource.source_platform }}</td></tr>
+        </table>
+      </div>
+
+      {% if resource.prerequisites %}
+      <div class="card" style="margin-top:16px">
+        <h3>Prerequisites</h3>
+        <ul class="prereq-list">
+          {% for p in resource.prerequisites %}
+          <li>{{ p }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</section>
+
+<div class="modal-overlay" id="correct-modal" style="display:none">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Correct AI Field</h2>
+      <button class="modal-close" onclick="closeCorrectModal()">x</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Field</label>
+        <select id="correct-field" class="form-input">
+          <option value="type">Type</option>
+          <option value="domain">Domain</option>
+          <option value="subdomain">Subdomain</option>
+          <option value="skill_level">Skill Level</option>
+          <option value="format">Format</option>
+          <option value="cost">Cost</option>
+          <option value="summary">Summary</option>
+          <option value="tags">Tags</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Old value</label>
+        <input type="text" id="correct-old" class="form-input" readonly>
+      </div>
+      <div class="form-group">
+        <label>New value</label>
+        <input type="text" id="correct-new" class="form-input" placeholder="Correct value">
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-ghost" onclick="closeCorrectModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="submitCorrection('{{ resource.id }}')">Save correction</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+function setRating(id, score) {
+  fetch('/api/resource/' + id + '/rate', {
+    method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({score: score})
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    toast('Rated ' + score + '/10', 'success');
+    document.querySelectorAll('.star').forEach(function(s) {
+      s.textContent = parseInt(s.dataset.score) <= score ? '★' : '☆';
+    });
+  }).catch(function(e) { toast(e.message, 'error'); });
+}
+
+function setState(id, state) {
+  fetch('/api/resource/' + id + '/state', {
+    method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({state: state})
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    toast('State: ' + state, 'success');
+  }).catch(function(e) { toast(e.message, 'error'); });
+}
+
+function addTag(id) {
+  var input = document.getElementById('tag-input');
+  var tag = input.value.trim();
+  if (!tag) return;
+  fetch('/api/resource/' + id + '/tags', {
+    method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({tags: [tag]})
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    var display = document.getElementById('tags-display');
+    display.innerHTML = d.tags.map(function(t) { return '<span class="tag">#' + t + '</span>'; }).join('');
+    input.value = '';
+    toast('Tag added', 'success');
+  }).catch(function(e) { toast(e.message, 'error'); });
+}
+
+function saveNote(id) {
+  var text = document.getElementById('note-input').value.trim();
+  if (!text) { toast('Note is empty', 'error'); return; }
+  fetch('/api/resource/' + id + '/note', {
+    method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({text: text})
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    toast('Note saved', 'success');
+  }).catch(function(e) { toast(e.message, 'error'); });
+}
+
+function markUsed(id) {
+  fetch('/api/resource/' + id + '/use', {method: 'POST'})
+    .then(function(r) { return r.json(); }).then(function(d) {
+      toast('Usage recorded', 'success');
+    }).catch(function(e) { toast(e.message, 'error'); });
+}
+
+function openCorrectModal(id) {
+  document.getElementById('correct-modal').style.display = 'flex';
+}
+
+function closeCorrectModal() {
+  document.getElementById('correct-modal').style.display = 'none';
+}
+
+function submitCorrection(id) {
+  var field = document.getElementById('correct-field').value;
+  var oldVal = document.getElementById('correct-old').value;
+  var newVal = document.getElementById('correct-new').value.trim();
+  if (!newVal) { toast('New value required', 'error'); return; }
+  fetch('/api/resource/' + id + '/correct', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({field: field, old: oldVal, new: newVal})
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    toast('Correction saved', 'success');
+    closeCorrectModal();
+  }).catch(function(e) { toast(e.message, 'error'); });
+}
+
+function archiveResource(id) {
+  if (!confirm('Archive this resource?')) return;
+  fetch('/api/resource/' + id, {
+    method: 'DELETE', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({hard: false})
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    toast('Resource archived', 'success');
+    setTimeout(function() { window.location = '/resources'; }, 1000);
+  }).catch(function(e) { toast(e.message, 'error'); });
+}
+
+// Initialize star display
+document.addEventListener('DOMContentLoaded', function() {
+  var currentRating = {{ resource.personal_rating or 0 }};
+  if (currentRating > 0) {
+    document.querySelectorAll('.star').forEach(function(s) {
+      s.textContent = parseInt(s.dataset.score) <= currentRating ? '★' : '☆';
+    });
+  }
+});
+</script>
+{% endblock %}

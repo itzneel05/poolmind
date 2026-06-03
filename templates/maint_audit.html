@@ -1,0 +1,66 @@
+{% extends "layout.html" %}
+{% block title %}— Audit Log{% endblock %}
+{% block content %}
+<header class="page-header">
+  <h1 class="page-title">Audit Log</h1>
+  <div class="page-actions">
+    <button class="btn btn-primary" onclick="runAudit()">Run full audit</button>
+    <span class="mono faint">{{ log|length }} entries</span>
+  </div>
+</header>
+
+<section class="page-content">
+  <div id="audit-progress" class="progress-panel" style="display:none;margin-bottom:16px">
+    <div class="step active">Running audit...</div>
+  </div>
+  <div id="audit-result" style="display:none;margin-bottom:16px"></div>
+
+  {% if log %}
+  <table class="data-table">
+    <thead>
+      <tr><th>Time</th><th>Action</th><th>Resource</th><th>Detail</th></tr>
+    </thead>
+    <tbody>
+      {% for entry in log %}
+      <tr{% if entry.resource_id %} onclick="window.location='/resource/{{ entry.resource_id }}'" class="clickable-row"{% endif %}>
+        <td class="mono faint">{{ (entry.timestamp or '')[:19] }}</td>
+        <td><span class="state-badge {{ entry.action }}">{{ entry.action }}</span></td>
+        <td class="mono faint">{{ entry.resource_id or '-' }}</td>
+        <td class="faint">{{ (entry.detail or '')[:100] }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state">
+    <div class="empty-icon" data-lucide="clipboard-list"></div>
+    <h2>No audit entries</h2>
+    <p>The audit log is empty.</p>
+  </div>
+  {% endif %}
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function runAudit() {
+  var progress = document.getElementById('audit-progress');
+  var result = document.getElementById('audit-result');
+  progress.style.display = 'block';
+  result.style.display = 'none';
+
+  fetch('/api/audit', {method: 'POST'})
+    .then(function(r) { return r.json(); }).then(function(d) {
+      progress.style.display = 'none';
+      var msg = d.total ? 'Audit complete: ' + d.total + ' resources checked' : 'Audit complete';
+      result.innerHTML = '<div class="step ok">[OK] ' + msg + '</div>';
+      result.style.display = 'block';
+      setTimeout(function() { window.location.reload(); }, 2000);
+    }).catch(function(e) {
+      progress.style.display = 'none';
+      result.innerHTML = '<div class="step fail">[FAIL] ' + e.message + '</div>';
+      result.style.display = 'block';
+    });
+}
+</script>
+{% endblock %}

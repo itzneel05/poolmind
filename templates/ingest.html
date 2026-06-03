@@ -1,0 +1,192 @@
+{% extends "layout.html" %}
+{% block title %}— Bulk Ingest{% endblock %}
+{% block content %}
+<header class="page-header">
+  <h1 class="page-title">Bulk Ingest</h1>
+  <div class="page-actions">
+    <a href="/add" class="btn btn-ghost">Single URL</a>
+  </div>
+</header>
+
+<section class="page-content">
+  <div class="form-card">
+    <div class="tab-bar">
+      <button class="tab active" onclick="switchTab('paste')">Paste text</button>
+      <button class="tab" onclick="switchTab('upload')">Upload file</button>
+    </div>
+
+    <div id="tab-paste" class="tab-content">
+      <div class="form-group">
+        <label>Paste your resources <span class="faint">(URLs, title-URL pairs, markdown links, Notion URLs, title-only)</span></label>
+        <textarea id="ingest-text" rows="12" class="form-input mono" placeholder="PayloadsAllTheThings - https://github.com/swisskyrepo/PayloadsAllTheThings&#10;https://portswigger.net/web-security/sql-injection&#10;[HackTricks](https://book.hacktricks.xyz)&#10;The Web Application Hacker's Handbook"></textarea>
+      </div>
+    </div>
+
+    <div id="tab-upload" class="tab-content" style="display:none">
+      <div class="upload-zone" id="upload-zone">
+        <div class="upload-icon" data-lucide="upload"></div>
+        <p>Drop a file here or click to browse</p>
+        <p class="faint">Supports: .txt, .md, .csv</p>
+        <input type="file" id="file-input" accept=".txt,.md,.csv" style="display:none">
+      </div>
+    </div>
+
+    <div class="form-options">
+      <label class="checkbox-label"><input type="checkbox" id="no-ai"> Disable AI enrichment</label>
+      <label class="checkbox-label"><input type="checkbox" id="no-notion"> Skip Notion sync</label>
+      <label class="checkbox-label"><input type="checkbox" id="no-obsidian"> Skip Obsidian write</label>
+    </div>
+
+    <div class="form-actions">
+      <button class="btn btn-secondary" onclick="previewIngest()">Preview</button>
+      <button class="btn btn-primary" id="ingest-btn" onclick="runIngest()">Ingest All</button>
+    </div>
+
+    <div id="preview-area" style="display:none"></div>
+    <div id="progress-area" style="display:none"></div>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
+  document.querySelectorAll('.tab-content').forEach(function(t) { t.style.display = 'none'; });
+  document.querySelector('.tab-bar button[onclick*="' + name + '"]').classList.add('active');
+  document.getElementById('tab-' + name).style.display = 'block';
+}
+
+document.getElementById('upload-zone').addEventListener('click', function() {
+  document.getElementById('file-input').click();
+});
+document.getElementById('file-input').addEventListener('change', function(e) {
+  var file = e.target.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(ev) {
+    document.getElementById('ingest-text').value = ev.target.result;
+    switchTab('paste');
+  };
+  reader.readAsText(file);
+});
+document.getElementById('upload-zone').addEventListener('dragover', function(e) { e.preventDefault(); });
+document.getElementById('upload-zone').addEventListener('drop', function(e) {
+  e.preventDefault();
+  var file = e.dataTransfer.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(ev) {
+    document.getElementById('ingest-text').value = ev.target.result;
+    switchTab('paste');
+  };
+  reader.readAsText(file);
+});
+
+var parsedEntries = null;
+
+async function previewIngest() {
+  var text = document.getElementById('ingest-text').value.trim();
+  if (!text) { toast('Paste some resources first', 'error'); return; }
+
+  var preview = document.getElementById('preview-area');
+  preview.style.display = 'block';
+  preview.innerHTML = '<div class="section-divider"><span>PARSING</span></div><p class="faint">Parsing...</p>';
+
+  try {
+    var resp = await fetch('/api/ingest/parse', {
+      method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({text: text})
+    });
+    var data = await resp.json();
+    if (!resp.ok) { preview.innerHTML = '<p class="fail">Error: ' + data.error + '</p>'; return; }
+
+    parsedEntries = data.entries;
+    var s = data.summary;
+    var html = '<div class="section-divider"><span>PARSE RESULT — ' + s.total + ' entries</span></div>';
+
+    html += '<div class="summary-chips">';
+    for (var t in s.by_type) { html += '<span class="chip">' + t + ': ' + s.by_type[t] + '</span>'; }
+    if (s.title_only > 0) html += '<span class="chip warn">no URL: ' + s.title_only + '</span>';
+    html += '</div>';
+
+    html += '<div style="margin-top:16px;max-height:400px;overflow-y:auto"><table class="data-table"><thead><tr>' +
+      '<th><input type="checkbox" checked onchange="toggleAll(this)"></th>' +
+      '<th>Type</th><th>Title</th><th>URL</th><th>Conf</th></tr></thead><tbody>';
+    for (var i = 0; i < parsedEntries.length; i++) {
+      var e = parsedEntries[i];
+      var title = e.title || '<span class="faint">—</span>';
+      var url = e.url ? '<span class="mono faint">' + e.url.substring(0, 50) + '</span>' : '<span class="faint">no url</span>';
+      html += '<tr><td><input type="checkbox" class="entry-check" checked data-idx="' + i + '"></td>' +
+        '<td>' + e.entry_type + '</td><td>' + title + '</td><td>' + url + '</td><td class="mono">' + e.confidence + '</td></tr>';
+    }
+    html += '</tbody></table></div>';
+    html += '<div class="form-actions"><button class="btn btn-primary" onclick="runIngest()">Ingest selected</button></div>';
+    preview.innerHTML = html;
+  } catch(err) { preview.innerHTML = '<p class="fail">Error: ' + err.message + '</p>'; }
+}
+
+function toggleAll(src) {
+  document.querySelectorAll('.entry-check').forEach(function(c) { c.checked = src.checked; });
+}
+
+var ingestRunning = false;
+async function runIngest() {
+  if (ingestRunning) return;
+  if (!parsedEntries || parsedEntries.length === 0) { await previewIngest(); if (!parsedEntries) return; }
+
+  var selected = [];
+  document.querySelectorAll('.entry-check:checked').forEach(function(c) {
+    selected.push(parseInt(c.dataset.idx));
+  });
+
+  if (selected.length === 0) { toast('No entries selected', 'error'); return; }
+
+  ingestRunning = true;
+  var btn = document.getElementById('ingest-btn');
+  btn.disabled = true; btn.textContent = 'Ingesting...';
+
+  var progress = document.getElementById('progress-area');
+  progress.style.display = 'block';
+  progress.innerHTML = '<div class="section-divider"><span>INGESTING</span></div><div id="ingest-log"></div>';
+
+  var log = document.getElementById('ingest-log');
+
+  try {
+    var resp = await fetch('/api/ingest/run', {
+      method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({
+        entries: parsedEntries,
+        selected: selected,
+        ai_disabled: document.getElementById('no-ai').checked,
+        skip_notion_sync: document.getElementById('no-notion').checked,
+        skip_obsidian: document.getElementById('no-obsidian').checked,
+      })
+    });
+    var data = await resp.json();
+    if (!resp.ok) { log.innerHTML = '<div class="step fail">Error: ' + data.error + '</div>'; return; }
+
+    var r = data.report;
+    var html = '';
+    r.failed_entries.forEach(function(f) {
+      html += '<div class="step fail">[FAIL] Line ' + f.line + ': ' + f.error + '</div>';
+    });
+    html += '<div class="section-divider"><span>DONE</span></div>' +
+      '<div class="result-stats">' +
+      '<span class="stat">[OK] Added: ' + r.added + '</span>' +
+      '<span class="stat warn">[=] Duplicates: ' + r.duplicates + '</span>' +
+      '<span class="stat warn">[?] Needs review: ' + r.needs_review + '</span>' +
+      '<span class="stat fail">[-] Failed: ' + r.failed + '</span>' +
+      '</div>';
+    if (r.needs_review_entries && r.needs_review_entries.length > 0) {
+      html += '<div class="section-divider"><span>NEEDS REVIEW</span></div>';
+      r.needs_review_entries.forEach(function(nr) {
+        html += '<div><a href="/resource/' + nr.id + '">' + nr.title + '</a></div>';
+      });
+    }
+    log.innerHTML = html;
+  } catch(err) { log.innerHTML = '<div class="step fail">Error: ' + err.message + '</div>'; }
+
+  ingestRunning = false;
+  btn.disabled = false; btn.textContent = 'Ingest All';
+}
+</script>
+{% endblock %}

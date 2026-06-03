@@ -1,0 +1,76 @@
+{% extends "layout.html" %}
+{% block title %}— Deduplicate{% endblock %}
+{% block content %}
+<header class="page-header">
+  <h1 class="page-title">Deduplicate</h1>
+  <div class="page-actions">
+    <button class="btn btn-primary" onclick="findDuplicates()">Find duplicates</button>
+  </div>
+</header>
+
+<section class="page-content">
+  <div class="card" style="margin-bottom:16px">
+    <p class="faint">Find near-duplicate resources in your pool by comparing titles, URLs, and metadata.</p>
+  </div>
+
+  <div id="dedupe-progress" class="progress-panel" style="display:none;margin-bottom:16px">
+    <div class="step active">Scanning for duplicates...</div>
+  </div>
+
+  <div id="dedupe-results"></div>
+
+  <div id="dedupe-empty" class="empty-state">
+    <div class="empty-icon" data-lucide="copy"></div>
+    <h2>No duplicates checked</h2>
+    <p>Click "Find duplicates" to scan your pool.</p>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function findDuplicates() {
+  var progress = document.getElementById('dedupe-progress');
+  var results = document.getElementById('dedupe-results');
+  var empty = document.getElementById('dedupe-empty');
+  progress.style.display = 'block';
+  results.innerHTML = '';
+  empty.style.display = 'none';
+
+  fetch('/api/dedupe', {method: 'POST'})
+    .then(function(r) { return r.json(); }).then(function(d) {
+      progress.style.display = 'none';
+      if (d.duplicates && d.duplicates.length) {
+        var html = '<div class="section-divider"><span>' + d.count + ' DUPLICATE PAIR(S)</span></div>';
+        d.duplicates.forEach(function(pair) {
+          var a = pair.resource_a;
+          var b = pair.resource_b;
+          html += '<div class="card" style="margin-bottom:12px">';
+          html += '<div class="card-header-inline"><span class="stat-badge warn">' + Math.round(pair.score) + '% match</span></div>';
+          html += '<table class="data-table"><thead><tr><th>ID</th><th>Title</th><th>Actions</th></tr></thead><tbody>';
+          html += '<tr><td class="mono faint">' + a.id + '</td><td><a href="/resource/' + a.id + '">' + a.title + '</a></td>';
+          html += '<td><button class="btn btn-ghost" onclick="archiveDup(\'' + a.id + '\')">Archive</button></td></tr>';
+          html += '<tr><td class="mono faint">' + b.id + '</td><td><a href="/resource/' + b.id + '">' + b.title + '</a></td>';
+          html += '<td><button class="btn btn-ghost" onclick="archiveDup(\'' + b.id + '\')">Archive</button></td></tr>';
+          html += '</tbody></table></div>';
+        });
+        results.innerHTML = html;
+      } else {
+        results.innerHTML = '<div class="empty-state"><div class="empty-icon" data-lucide="check-circle"></div><h2>No duplicates found</h2><p>All resources appear to be unique.</p></div>';
+      }
+    }).catch(function(e) {
+      progress.style.display = 'none';
+      results.innerHTML = '<div class="step fail">[FAIL] ' + e.message + '</div>';
+    });
+}
+
+function archiveDup(id) {
+  if (!confirm('Archive ' + id + '?')) return;
+  fetch('/api/resource/' + id, {method: 'DELETE', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({hard: false})})
+    .then(function(r) { return r.json(); }).then(function(d) {
+      toast('Archived ' + id, 'success');
+      window.location.reload();
+    }).catch(function(e) { toast(e.message, 'error'); });
+}
+</script>
+{% endblock %}

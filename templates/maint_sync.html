@@ -1,0 +1,84 @@
+{% extends "layout.html" %}
+{% block title %}— Notion Sync{% endblock %}
+{% block content %}
+<header class="page-header">
+  <h1 class="page-title">Notion Sync</h1>
+  <div class="page-actions">
+    <button class="btn btn-primary" onclick="runSync()">Sync now</button>
+  </div>
+</header>
+
+<section class="page-content">
+  <div class="stats-grid" style="margin-bottom:16px">
+    <div class="stat-card hud-card">
+      <span class="stat-value mono">{% if status.configured %}[OK]{% else %}[DISABLED]{% endif %}</span>
+      <span class="stat-label">configured</span>
+    </div>
+    <div class="stat-card hud-card">
+      <span class="stat-value mono">{{ status.unsynced_count }}</span>
+      <span class="stat-label">unsynced</span>
+      <span class="stat-badge {% if status.unsynced_count > 0 %}warn{% else %}ok{% endif %}">{% if status.unsynced_count > 0 %}[PENDING]{% else %}[OK]{% endif %}</span>
+    </div>
+    <div class="stat-card hud-card">
+      <span class="stat-value mono">{{ sync_log|length }}</span>
+      <span class="stat-label">recent syncs</span>
+    </div>
+  </div>
+
+  <div id="sync-progress" class="progress-panel" style="display:none;margin-bottom:16px">
+    <div class="step active">Syncing... (may take a moment)</div>
+  </div>
+  <div id="sync-result" style="display:none;margin-bottom:16px"></div>
+
+  <div class="section-divider"><span>SYNC HISTORY</span></div>
+  {% if sync_log %}
+  <table class="data-table">
+    <thead>
+      <tr><th>Time</th><th>Resource</th><th>Detail</th></tr>
+    </thead>
+    <tbody>
+      {% for entry in sync_log %}
+      <tr>
+        <td class="mono faint">{{ (entry.timestamp or '')[:19] }}</td>
+        <td class="mono faint">{{ entry.resource_id or '-' }}</td>
+        <td class="faint">{{ (entry.detail or '')[:100] }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state">
+    <div class="empty-icon" data-lucide="database"></div>
+    <h2>No sync activity</h2>
+    <p>No Notion sync operations have been performed yet.</p>
+  </div>
+  {% endif %}
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function runSync() {
+  var progress = document.getElementById('sync-progress');
+  var result = document.getElementById('sync-result');
+  progress.style.display = 'block';
+  result.style.display = 'none';
+
+  fetch('/api/sync/notion/run', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({batch_size: 10})
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    progress.style.display = 'none';
+    var msg = 'Synced ' + (d.synced || 0) + ', failed ' + (d.failed || 0);
+    result.innerHTML = '<div class="step ok">[OK] ' + msg + '</div>';
+    result.style.display = 'block';
+    setTimeout(function() { window.location.reload(); }, 3000);
+  }).catch(function(e) {
+    progress.style.display = 'none';
+    result.innerHTML = '<div class="step fail">[FAIL] ' + e.message + '</div>';
+    result.style.display = 'block';
+  });
+}
+</script>
+{% endblock %}

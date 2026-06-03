@@ -1,0 +1,95 @@
+{% extends "layout.html" %}
+{% block title %}— Gap Analysis{% endblock %}
+{% block content %}
+<header class="page-header">
+  <h1 class="page-title">Gap Analysis</h1>
+  <div class="page-actions">
+    <button class="btn btn-primary" onclick="runGapAnalysis()">Run analysis</button>
+  </div>
+</header>
+
+<section class="page-content">
+  <div class="card" style="margin-bottom:16px">
+    <p class="faint">Analyze your resource pool for coverage gaps across domains, skill levels, and resource types.</p>
+  </div>
+  {% if not ai_status_global.api_running %}
+  <div class="card" style="margin-bottom:12px;background:var(--bg-elevated);border-color:var(--warning)">
+    <p class="faint" style="font-size:var(--text-sm)"><span class="stat-badge warn">[AI OFFLINE]</span> Gap analysis requires the AI API (freellmapi). Start freellmapi first, then run the analysis.</p>
+  </div>
+  {% endif %}
+
+  <div id="gap-progress" class="progress-panel" style="display:none;margin-bottom:16px">
+    <div class="step active">Running gap analysis... (may take a moment)</div>
+  </div>
+
+  <div id="gap-results" style="display:none">
+    <div class="section-divider"><span>COVERAGE</span></div>
+    <div class="stats-grid" id="gap-stats"></div>
+    <div class="section-divider" style="margin-top:16px"><span>GAPS & RECOMMENDATIONS</span></div>
+    <div id="gap-details"></div>
+  </div>
+
+  <div id="gap-empty" class="empty-state">
+    <div class="empty-icon" data-lucide="search"></div>
+    <h2>No analysis yet</h2>
+    <p>Click "Run analysis" to assess your resource pool coverage.</p>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function runGapAnalysis() {
+  var progress = document.getElementById('gap-progress');
+  var results = document.getElementById('gap-results');
+  var empty = document.getElementById('gap-empty');
+  progress.style.display = 'block';
+  results.style.display = 'none';
+  empty.style.display = 'none';
+
+  fetch('/api/gap', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: '{}'
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    progress.style.display = 'none';
+    if (d.gap_report) {
+      var report = d.gap_report;
+      var statsHtml = '';
+      if (report.total) {
+        statsHtml += '<div class="stat-card hud-card"><span class="stat-value mono">' + report.total + '</span><span class="stat-label">total resources</span></div>';
+      }
+      if (report.domains_covered) {
+        statsHtml += '<div class="stat-card hud-card"><span class="stat-value mono">' + report.domains_covered + '</span><span class="stat-label">domains covered</span></div>';
+      }
+      if (report.recommendations) {
+        statsHtml += '<div class="stat-card hud-card"><span class="stat-value mono">' + report.recommendations.length + '</span><span class="stat-label">recommendations</span></div>';
+      }
+      document.getElementById('gap-stats').innerHTML = statsHtml;
+
+      var detailsHtml = '';
+      if (report.recommendations) {
+        report.recommendations.forEach(function(rec) {
+          detailsHtml += '<div class="card" style="margin-bottom:8px"><div class="detail-block"><h3>' + (rec.domain || rec.area || 'General') + '</h3><p>' + (rec.suggestion || rec.message || '') + '</p></div></div>';
+        });
+      }
+      if (report.missing_domains && report.missing_domains.length) {
+        detailsHtml += '<div class="card"><div class="detail-block"><h3>Missing domains</h3><p>' + report.missing_domains.join(', ') + '</p></div></div>';
+      }
+      if (!detailsHtml) {
+        detailsHtml = '<div class="empty-state"><div class="empty-icon" data-lucide="check-circle"></div><h2>Good coverage</h2><p>No significant gaps found.</p></div>';
+      }
+      document.getElementById('gap-details').innerHTML = detailsHtml;
+      results.style.display = 'block';
+    } else {
+      results.innerHTML = '<div class="step fail">[FAIL] ' + (d.error || 'Analysis failed') + '</div>';
+      results.style.display = 'block';
+    }
+  }).catch(function(e) {
+    progress.style.display = 'none';
+    document.getElementById('gap-empty').innerHTML = '<div class="step fail">[FAIL] ' + e.message + '</div>';
+    document.getElementById('gap-empty').style.display = 'block';
+  });
+}
+</script>
+{% endblock %}

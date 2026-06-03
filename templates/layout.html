@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>poolmind {% block title %}{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link rel="stylesheet" href="/static/style.css">
+  {% block head %}{% endblock %}
+</head>
+<body>
+  <nav class="top-nav">
+    <div class="nav-inner">
+      <a href="/" class="nav-logo">poolmind</a>
+      <div class="nav-items">
+        <a href="/" class="nav-item {% if request.path == '/' %}active{% endif %}">Dashboard</a>
+        <div class="nav-dropdown">
+          <a href="#" class="nav-item dropdown-trigger">+ Add</a>
+          <div class="dropdown-menu">
+            <a href="/add" class="dropdown-item">Quick URL</a>
+            <a href="/add/manual" class="dropdown-item">Manual entry</a>
+            <a href="/ingest" class="dropdown-item">Bulk ingest</a>
+          </div>
+        </div>
+        <div class="nav-dropdown">
+          <a href="#" class="nav-item dropdown-trigger">Resources</a>
+          <div class="dropdown-menu">
+            <a href="/resources" class="dropdown-item">All resources</a>
+            <a href="/resources/recent" class="dropdown-item">Recent</a>
+            <a href="/resources/untouched" class="dropdown-item">Untouched</a>
+            <a href="/resources/random" class="dropdown-item">Random gem</a>
+          </div>
+        </div>
+        <div class="nav-dropdown">
+          <a href="#" class="nav-item dropdown-trigger">Intelligence</a>
+          <div class="dropdown-menu">
+            <a href="/intelligence/paths" class="dropdown-item">Learning paths</a>
+            <a href="/intelligence/stacks" class="dropdown-item">Tech stacks</a>
+            <a href="/intelligence/gap" class="dropdown-item">Gap analysis</a>
+          </div>
+        </div>
+        <div class="nav-dropdown">
+          <a href="#" class="nav-item dropdown-trigger">Maintenance</a>
+          <div class="dropdown-menu">
+            <a href="/maintenance/audit" class="dropdown-item">Audit log</a>
+            <a href="/maintenance/dedupe" class="dropdown-item">Deduplicate</a>
+            <a href="/maintenance/dead-links" class="dropdown-item">Dead links</a>
+            <a href="/maintenance/sync" class="dropdown-item">Notion sync</a>
+          </div>
+        </div>
+        <div class="nav-dropdown">
+          <a href="#" class="nav-item dropdown-trigger">AI</a>
+          <div class="dropdown-menu">
+            <a href="/ai/prompts" class="dropdown-item">Prompts</a>
+            <a href="/ai/corrections" class="dropdown-item">Corrections</a>
+          </div>
+        </div>
+        <a href="/search" class="nav-item {% if request.path == '/search' %}active{% endif %}">Search</a>
+        <a href="/settings" class="nav-item {% if request.path == '/settings' %}active{% endif %}">Settings</a>
+      </div>
+    </div>
+  </nav>
+
+  <main class="page">
+    <div class="flash-container" id="flash"></div>
+    {% block content %}{% endblock %}
+  </main>
+
+  <div class="toast-container" id="toast"></div>
+  <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+  <script>
+    lucide.createIcons();
+    function toast(msg, type) {
+      var t = document.getElementById('toast');
+      var el = document.createElement('div');
+      el.className = 'toast toast-' + (type || 'info');
+      el.textContent = msg;
+      t.appendChild(el);
+      setTimeout(function() { el.remove(); }, 4000);
+    }
+    document.addEventListener('click', function(e) {
+      var dd = e.target.closest('.nav-dropdown');
+      var trigger = e.target.closest('.dropdown-trigger');
+      document.querySelectorAll('.nav-dropdown.open').forEach(function(d) {
+        if (d !== dd) d.classList.remove('open');
+      });
+      if (trigger) { dd.classList.toggle('open'); e.preventDefault(); }
+    });
+    document.addEventListener('click', function(e) {
+      if (!e.target.closest('.nav-dropdown')) {
+        document.querySelectorAll('.nav-dropdown.open').forEach(function(d) { d.classList.remove('open'); });
+      }
+    });
+    (function() {
+      var path = window.location.pathname;
+      document.querySelectorAll('.dropdown-item').forEach(function(el) {
+        var href = el.getAttribute('href');
+        if (href && (path === href || path.indexOf(href) === 0)) {
+          el.classList.add('active');
+          el.closest('.nav-dropdown').classList.add('active');
+        }
+      });
+    })();
+  </script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

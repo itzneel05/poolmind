@@ -1,0 +1,37 @@
+{% extends "layout.html" %}
+{% block title %}— AI Corrections{% endblock %}
+{% block content %}
+<header class="page-header">
+  <h1 class="page-title">AI Corrections</h1>
+  <div class="page-actions">
+    <span class="mono faint">{{ corrections|length }} correction(s)</span>
+  </div>
+</header>
+
+<section class="page-content">
+  {% if corrections %}
+  <table class="data-table">
+    <thead>
+      <tr><th>Time</th><th>Task</th><th>Detail</th><th>Confidence</th></tr>
+    </thead>
+    <tbody>
+      {% for c in corrections %}
+      <tr>
+        <td class="mono faint">{{ (c.created_at or '')[:19] }}</td>
+        <td><span class="mono">{{ c.task }}</span></td>
+        <td class="faint">{{ (c.correction_detail or '')[:120] }}</td>
+        <td class="mono">{{ c.confidence_reported or '?' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state">
+    <div class="empty-icon" data-lucide="thumbs-up"></div>
+    <h2>No corrections</h2>
+    <p>No user corrections have been logged. Corrections appear when you use the "Correct AI field" action on a resource.</p>
+    <a href="/resources" class="btn btn-secondary">Browse resources</a>
+  </div>
+  {% endif %}
+</section>
+{% endblock %}

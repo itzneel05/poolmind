@@ -1,0 +1,44 @@
+# ============================================================
+# poolmind bulk ingest - example format
+# Lines starting with # are ignored
+# Blank lines are ignored
+# Supports all formats below - mix and match freely
+# ============================================================
+
+# --- Format 1: Pure URL ---
+https://portswigger.net/web-security/sql-injection
+
+# --- Format 2: Title - URL ---
+PayloadsAllTheThings - https://github.com/swisskyrepo/PayloadsAllTheThings
+OWASP Testing Guide - https://owasp.org/www-project-web-security-testing-guide/
+
+# --- Format 3: Markdown links ---
+[HackTricks](https://book.hacktricks.xyz)
+[Bug Bounty Bootcamp](https://nostarch.com/bug-bounty-bootcamp)
+
+# --- Format 4: Title | URL ---
+NahamSec Bug Bounty Course | https://www.udemy.com/course/intro-to-bug-bounty-by-nahamsec/
+SANS Reading Room | https://www.sans.org/reading-room/
+
+# --- Format 5: Notion share links ---
+https://www.notion.so/My-Resource-Database-00000000000000000000000000000000
+
+# --- Format 6: Title only (no URL - stored as local) ---
+The Web Application Hacker's Handbook
+Hacking: The Art of Exploitation
+My personal SQLi notes
+
+# --- Format 7: List items with descriptions ---
+- Burp Suite Pro - Industry standard web proxy - https://portswigger.net/burp/pro
+- ffuf - Fast web fuzzer - https://github.com/ffuf/ffuf
+- sqlmap - Automatic SQL injection tool - https://sqlmap.org
+
+# --- Format 8: Free text with embedded links ---
+Check out this great resource on SSRF https://www.assetnote.io/resources/research/the-power-of-ssrf and also this one https://portswigger.net/web-security/ssrf
+
+# --- Format 9: Title on one line, URL on next ---
+LiveOverflow YouTube Channel
+https://www.youtube.com/@LiveOverflow
+
+John Hammond CTF Playlist
+https://www.youtube.com/playlist?list=PL1H1sBF1VAKVMONJWJkmfd68kGiTqcL3J

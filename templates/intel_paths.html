@@ -1,0 +1,95 @@
+{% extends "layout.html" %}
+{% block title %}— Learning Paths{% endblock %}
+{% block content %}
+<header class="page-header">
+  <h1 class="page-title">Learning Paths</h1>
+  <div class="page-actions">
+    <button class="btn btn-primary" onclick="openGeneratePathModal()">Generate new path</button>
+  </div>
+</header>
+
+<section class="page-content">
+  {% if paths %}
+  <table class="data-table">
+    <thead>
+      <tr><th>Path</th><th>Goal</th><th>Weeks</th><th>Created</th></tr>
+    </thead>
+    <tbody>
+      {% for p in paths %}
+      <tr onclick="window.location='/intelligence/paths/{{ p.id }}'" class="clickable-row">
+        <td class="mono">{{ p.path_name }}</td>
+        <td>{{ p.goal[:80] }}</td>
+        <td class="num mono">{{ p.weeks|length }}</td>
+        <td class="faint">{{ (p.created_at or '')[:10] }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state">
+    <div class="empty-icon" data-lucide="route"></div>
+    <h2>No paths yet</h2>
+    <p>Generate a learning path from your resource pool.</p>
+    <button class="btn btn-primary" onclick="openGeneratePathModal()">Generate path</button>
+  </div>
+  {% endif %}
+</section>
+
+<div class="modal-overlay" id="gen-path-modal" style="display:none">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Generate Learning Path</h2>
+      <button class="modal-close" onclick="closeModal('gen-path-modal')">x</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>What do you want to learn?</label>
+        <input type="text" id="path-goal" class="form-input" placeholder="e.g. Web application pentesting from scratch">
+      </div>
+      <div id="path-progress" class="progress-panel" style="display:none">
+        <div class="step active">Generating path... (may take a moment)</div>
+      </div>
+      <div id="path-result" style="display:none"></div>
+      <div class="form-actions">
+        <button class="btn btn-ghost" onclick="closeModal('gen-path-modal')">Cancel</button>
+        <button class="btn btn-primary" onclick="generatePath()">Generate</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function openGeneratePathModal() {
+  document.getElementById('gen-path-modal').style.display = 'flex';
+  document.getElementById('path-goal').value = '';
+  document.getElementById('path-progress').style.display = 'none';
+  document.getElementById('path-result').style.display = 'none';
+}
+function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+function generatePath() {
+  var goal = document.getElementById('path-goal').value.trim();
+  if (!goal) { toast('Enter a learning goal', 'error'); return; }
+  var progress = document.getElementById('path-progress');
+  var result = document.getElementById('path-result');
+  progress.style.display = 'block';
+  result.style.display = 'none';
+  fetch('/api/paths/generate', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({goal: goal})
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    if (d.path_id) {
+      result.innerHTML = '<div class="step ok">[OK] Path generated! <a href="/intelligence/paths/' + d.path_id + '" class="btn btn-primary">View path</a></div>';
+    } else {
+      result.innerHTML = '<div class="step fail">[FAIL] ' + (d.error || 'Generation failed') + '</div>';
+    }
+    result.style.display = 'block';
+  }).catch(function(e) {
+    result.innerHTML = '<div class="step fail">[FAIL] ' + e.message + '</div>';
+    result.style.display = 'block';
+  });
+}
+</script>
+{% endblock %}

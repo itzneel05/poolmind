@@ -1,0 +1,60 @@
+{% extends "layout.html" %}
+{% block title %}— AI Prompts{% endblock %}
+{% block content %}
+<header class="page-header">
+  <h1 class="page-title">AI Prompt Dashboard</h1>
+  <div class="page-actions">
+    <span class="mono faint">{{ stats|length }} tasks</span>
+  </div>
+</header>
+
+<section class="page-content">
+  {% if not ai_status_global.api_running %}
+  <div class="card" style="margin-bottom:12px;background:var(--bg-elevated);border-color:var(--warning)">
+    <p class="faint" style="font-size:var(--text-sm)"><span class="stat-badge warn">[AI OFFLINE]</span> The AI API (freellmapi) is not running. Evolution and corrections will not work until it is started.</p>
+  </div>
+  {% endif %}
+  {% if stats %}
+  <div class="stats-grid" style="margin-bottom:16px">
+    <div class="stat-card hud-card">
+      <span class="stat-value mono">{{ stats|length }}</span>
+      <span class="stat-label">AI tasks</span>
+    </div>
+    <div class="stat-card hud-card">
+      <span class="stat-value mono">{{ stats|sum(attribute='total_calls') }}</span>
+      <span class="stat-label">total calls</span>
+    </div>
+    <div class="stat-card hud-card">
+      <span class="stat-value mono">{{ stats|selectattr('needs_evolution')|list|length }}</span>
+      <span class="stat-label">need evolution</span>
+      <span class="stat-badge warn">[ATTENTION]</span>
+    </div>
+  </div>
+
+  <div class="intel-grid">
+    {% for s in stats %}
+    <div class="card stat-card" onclick="window.location='/ai/prompts/{{ s.task }}'" style="cursor:pointer">
+      <div class="card-header-inline">
+        <span class="mono">{{ s.task }}</span>
+        {% if s.needs_evolution %}
+        <span class="stat-badge warn">[EVOLVE]</span>
+        {% endif %}
+      </div>
+      <div class="intel-meta">
+        <span class="faint">Calls:</span> <span class="mono">{{ s.total_calls }}</span>
+        <span class="faint">Success:</span> <span class="mono">{{ (s.success_rate * 100)|round|int if s.success_rate is not none else '?' }}%</span>
+        <span class="faint">Avg conf:</span> <span class="mono">{{ s.avg_confidence or '?' }}</span>
+        <span class="faint">Corrections:</span> <span class="mono">{{ s.user_correction_rate|round(1) if s.user_correction_rate is not none else '?' }}%</span>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <div class="empty-icon" data-lucide="brain"></div>
+    <h2>No AI data yet</h2>
+    <p>AI tasks will appear here after resources are processed.</p>
+  </div>
+  {% endif %}
+</section>
+{% endblock %}
