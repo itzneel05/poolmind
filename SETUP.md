@@ -290,51 +290,25 @@ poolmind can sync resources to a Notion database for a secondary view of your le
 3. Name it `poolmind` and select the workspace where your database lives
 4. Click **"Submit"** — copy the **Internal Integration Token** (starts with `ntn_` or `secret_`)
 
-### Step 2: Create a Database
+### Step 2: Duplicate the Ready-Made Database
 
-In your Notion workspace, create a new database (any name, e.g., "Poolmind Resources"). Add these properties (the names matter — they must match `config/notion.yaml`):
+A pre-configured database template is available with all the correct properties already set up. No manual creation needed:
 
-| Property Type | Property Name |
-|---|---|
-| Title | `Name` |
-| Text | `Resource ID` |
-| Select | `Type` |
-| URL | `URL` |
-| Select | `Domain` |
-| Select | `Skill Level` |
-| Select | `Format` |
-| Select | `Cost` |
-| Number | `Quality Score` |
-| Number | `Personal Rating` |
-| Select | `Temporal Relevance` |
-| Select | `Consumption State` |
-| Number | `Times Used` |
-| Date | `Last Used` |
-| Date | `Added On` |
-| Date | `Last Verified` |
-| Checkbox | `Maintained` |
-| Number | `AI Confidence` |
-| Text | `Author` |
-| Select | `Platform` |
-| Number | `Year Published` |
-| Text | `Time to Value` |
-| Multi-select | `Tags` |
-| Text | `Summary` |
-| Text | `Why It Matters` |
-| Text | `Learning Path` |
-| Text | `Added By` |
+1. Open the template: **[Poolmind Resource Database](https://marsh-rugby-3bd.notion.site/b65954654aae82a5b8110192cf9b7ce6?v=efc954654aae827985c6081721cb2b32)**
+2. Click **"Duplicate"** (top-right corner)
+3. Select your workspace — a copy is created instantly with all properties, types, and views ready to go
 
-> **Tip:** You don't need every property. poolmind only syncs properties that exist. Start with `Name`, `URL`, `Type`, `Domain`, `Tags`, `Summary` — add the rest later.
+> **Tip:** The properties in the template match `config/notion.yaml` exactly — no typos, no datatype mismatches.
 
 ### Step 3: Share the Database with Your Integration
 
-1. Open your database in Notion
+1. Open your duplicated database in Notion
 2. Click **"..."** (top-right) → **"Add connections"**
-3. Select **"poolmind"** (the integration you just created)
+3. Select **"poolmind"** (the integration you created in Step 1)
 
 ### Step 4: Find Your Database ID
 
-The database ID is in the URL of your database page:
+The database ID is in the URL of your duplicated database page:
 
 ```
 https://www.notion.so/<workspace>/<database-id>?v=...
@@ -342,7 +316,7 @@ https://www.notion.so/<workspace>/<database-id>?v=...
                                    32-character hex string
 ```
 
-Copy just the 32-character hex string (the part before the `?`).
+Copy the 32-character hex string (the part before the `?`).
 
 ### Step 5: Configure .env
 
@@ -354,7 +328,7 @@ NOTION_SYNC_ENABLED=true
 
 ### Customizing Property Mappings
 
-If your Notion database uses different property names, edit `config/notion.yaml`:
+If you customize your Notion database with different property names, edit `config/notion.yaml`:
 
 ```yaml
 properties:

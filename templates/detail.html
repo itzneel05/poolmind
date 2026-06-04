@@ -130,6 +130,10 @@
 
           <hr class="divider">
 
+          <button class="btn btn-ghost" onclick="syncToNotion('{{ resource.id }}')">{% if resource.notion_page_id %}Re-sync{% else %}Sync to Notion{% endif %}</button>
+          {% if resource.notion_page_id %}
+          <a href="https://www.notion.so/{{ resource.notion_page_id.replace('-', '') }}" target="_blank" class="btn btn-ghost">Open in Notion ↗</a>
+          {% endif %}
           <button class="btn btn-ghost" onclick="markUsed('{{ resource.id }}')">Mark used</button>
           <button class="btn btn-ghost" onclick="openCorrectModal('{{ resource.id }}')">Correct AI field</button>
           <button class="btn btn-ghost" style="color:var(--danger)" onclick="trashResource('{{ resource.id }}')">Trash</button>
@@ -150,6 +154,12 @@
           <tr><td>Enrich</td><td>{% if resource.enrichment_status == 'pending' or resource.enrichment_status == 'in_progress' %}<span class="state-badge warn">AI enriching...</span>{% elif resource.enrichment_status == 'failed' %}<span class="state-badge" style="background:var(--danger)">FAILED</span>{% else %}<span class="state-badge ok">complete</span>{% endif %}</td></tr>
           <tr><td>Added</td><td class="faint">{{ resource.added_on[:10] }}</td></tr>
           <tr><td>Source</td><td>{{ resource.source_platform }}</td></tr>
+          {% if resource.notion_page_id %}
+          <tr><td>Notion</td><td><a href="https://www.notion.so/{{ resource.notion_page_id.replace('-', '') }}" target="_blank" class="faint">synced ↗</a></td></tr>
+          {% endif %}
+          {% if resource.notion_last_synced %}
+          <tr><td>Last sync</td><td class="faint">{{ resource.notion_last_synced[:10] }}</td></tr>
+          {% endif %}
         </table>
       </div>
 
@@ -255,6 +265,16 @@ function markUsed(id) {
     .then(function(r) { return r.json(); }).then(function(d) {
       toast('Usage recorded', 'success');
     }).catch(function(e) { toast(e.message, 'error'); });
+}
+
+function syncToNotion(id) {
+  toast('Syncing to Notion...', 'info');
+  fetch('/api/resource/' + id + '/sync', {method: 'POST'})
+    .then(function(r) { return r.json(); }).then(function(d) {
+      if (d.error) { toast('Sync failed: ' + d.error, 'error'); return; }
+      toast('Synced to Notion!', 'success');
+      setTimeout(function() { window.location.reload(); }, 1500);
+    }).catch(function(e) { toast('Sync error: ' + e.message, 'error'); });
 }
 
 function openCorrectModal(id) {

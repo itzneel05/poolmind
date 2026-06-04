@@ -19,6 +19,14 @@ def normalize_url(url: str) -> str:
         url,
     )
 
+    # Rewrite Medium articles through freedium to bypass paywall
+    if (
+        re.match(r"https?://([a-zA-Z0-9-]+\.)?medium\.com/", url)
+        and "freedium" not in url
+    ):
+        url = "https://freedium-mirror.cfd/" + url
+        return url
+
     try:
         parsed = urlparse(url)
     except Exception:

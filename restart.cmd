@@ -1,0 +1,6 @@
+@echo off
+echo Killing any running poolmind process...
+for /f "tokens=2" %%a in ('tasklist /fi "imagename eq python.exe" /v ^| findstr /i "webui"') do taskkill /f /pid %%a 2>nul
+echo Starting poolmind...
+start "" "%cd%\.venv\Scripts\python.exe" -m app.webui
+echo Done. poolmind is starting on http://localhost:5000

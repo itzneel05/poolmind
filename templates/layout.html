@@ -71,17 +71,130 @@
   </main>
 
   <div class="toast-container" id="toast"></div>
+  <div class="toast-container-progress" id="toast-progress"></div>
   <script src="https://unpkg.com/htmx.org@1.9.10"></script>
   <script>
-    lucide.createIcons();
-    function toast(msg, type) {
+    try { lucide.createIcons(); } catch(e) { console.warn('lucide icons failed', e); }
+
+    // ── Improved Toast ──
+    var toastId = 0;
+    function toast(msg, type, duration) {
+      duration = duration || 4000;
       var t = document.getElementById('toast');
       var el = document.createElement('div');
       el.className = 'toast toast-' + (type || 'info');
-      el.textContent = msg;
+      el.style.animation = 'none';
+      el.innerHTML = '<span>' + msg + '</span><button class="toast-close" onclick="event.stopPropagation(); clearTimeout(timer); removeToast(this.parentNode)">&times;</button>';
+      var id = ++toastId;
+      el.dataset.toastId = id;
       t.appendChild(el);
-      setTimeout(function() { el.remove(); }, 4000);
+      requestAnimationFrame(function() { el.style.animation = ''; });
+      var timer = setTimeout(function() { removeToast(el); }, duration);
+      el.addEventListener('click', function(e) { if (e.target.closest('.toast-close')) return; clearTimeout(timer); removeToast(el); });
     }
+    function removeToast(el) {
+      if (el.classList.contains('toast-removing')) return;
+      el.classList.add('toast-removing');
+      setTimeout(function() { if (el.parentNode) el.parentNode.removeChild(el); }, 200);
+    }
+
+    // ── Persistent Toast (for progress updates) ──
+    function toastPersistent(id, msg, type) {
+      var existing = document.querySelector('.toast[data-persist="' + id + '"]');
+      type = type || 'info';
+      if (existing) {
+        var span = existing.querySelector('.toast-msg');
+        if (span) span.textContent = msg;
+        existing.className = 'toast toast-' + type + ' toast-persist';
+        return existing;
+      }
+      var t = document.getElementById('toast');
+      var el = document.createElement('div');
+      el.className = 'toast toast-' + type + ' toast-persist';
+      el.innerHTML = '<span class="toast-msg">' + msg + '</span>';
+      el.dataset.persist = id;
+      t.appendChild(el);
+      requestAnimationFrame(function() { el.style.animation = ''; });
+      return el;
+    }
+    function toastDismiss(id) {
+      var el = document.querySelector('.toast[data-persist="' + id + '"]');
+      if (el) removeToast(el);
+    }
+
+    // ── Loading Overlay ──
+    function showLoading(msg) {
+      var existing = document.querySelector('.loading-overlay');
+      if (existing) return existing;
+      var overlay = document.createElement('div');
+      overlay.className = 'loading-overlay';
+      overlay.innerHTML = '<div style="text-align:center"><div class="loading-spinner"></div>' + (msg ? '<p style="margin-top:12px;font-size:var(--text-sm);color:var(--text-secondary)">' + msg + '</p>' : '') + '</div>';
+      document.body.appendChild(overlay);
+      return overlay;
+    }
+    function hideLoading() {
+      var el = document.querySelector('.loading-overlay');
+      if (el) { el.style.opacity = '0'; setTimeout(function() { if (el.parentNode) el.parentNode.removeChild(el); }, 150); }
+    }
+
+    // ── Keyboard Shortcuts ──
+    var shortcutsModalVisible = false;
+    document.addEventListener('keydown', function(e) {
+      if (e.key === '?' && !e.ctrlKey && !e.metaKey && !e.target.closest('input, textarea, select')) {
+        e.preventDefault();
+        if (shortcutsModalVisible) { closeShortcuts(); return; }
+        showShortcuts();
+      }
+      if (e.key === 'Escape' && shortcutsModalVisible) { closeShortcuts(); }
+    });
+
+    var SHORTCUTS = [
+      {key: '?', desc: 'Show keyboard shortcuts'},
+      {key: 'n', desc: 'Add new resource'},
+      {key: '/', desc: 'Focus search'},
+      {key: 'g d', desc: 'Go to dashboard'},
+      {key: 'g r', desc: 'Go to resources'},
+      {key: 'g t', desc: 'Go to trash'},
+      {key: 'g s', desc: 'Go to settings'},
+      {key: 'Esc', desc: 'Close modal / cancel'},
+    ];
+
+    function showShortcuts() {
+      shortcutsModalVisible = true;
+      var modal = document.createElement('div');
+      modal.className = 'shortcuts-modal';
+      modal.id = 'shortcuts-modal';
+      modal.addEventListener('click', function(e) { if (e.target === modal) closeShortcuts(); });
+      var html = '<div class="shortcuts-panel"><h2>Keyboard Shortcuts</h2><div class="shortcuts-grid">';
+      SHORTCUTS.forEach(function(s) {
+        html += '<kbd>' + s.key + '</kbd><span>' + s.desc + '</span>';
+      });
+      html += '</div><div class="shortcuts-close">Press <kbd>?</kbd> or <kbd>Esc</kbd> to close</div></div>';
+      modal.innerHTML = html;
+      document.body.appendChild(modal);
+      modal.querySelector('kbd').focus();
+    }
+    function closeShortcuts() {
+      shortcutsModalVisible = false;
+      var m = document.getElementById('shortcuts-modal');
+      if (m) { m.style.opacity = '0'; setTimeout(function() { if (m.parentNode) m.parentNode.removeChild(m); }, 150); }
+    }
+
+    // ── Go shortcuts (g then key) ──
+    var goBuffer = '';
+    document.addEventListener('keydown', function(e) {
+      if (e.target.closest('input, textarea, select')) return;
+      if (e.key === 'g' && goBuffer === '') { goBuffer = 'g'; setTimeout(function() { goBuffer = ''; }, 600); return; }
+      if (goBuffer === 'g') {
+        goBuffer = '';
+        var routes = {d: '/', r: '/resources', t: '/trash', s: '/settings'};
+        if (routes[e.key]) { e.preventDefault(); window.location = routes[e.key]; }
+      }
+      if (e.key === 'n' && goBuffer === '') { e.preventDefault(); window.location = '/add'; }
+      if (e.key === '/' && goBuffer === '') { e.preventDefault(); window.location = '/search'; }
+    });
+
+    // ── Dropdowns ──
     document.addEventListener('click', function(e) {
       var dd = e.target.closest('.nav-dropdown');
       var trigger = e.target.closest('.dropdown-trigger');
@@ -95,6 +208,8 @@
         document.querySelectorAll('.nav-dropdown.open').forEach(function(d) { d.classList.remove('open'); });
       }
     });
+
+    // ── Active dropdown item ──
     (function() {
       var path = window.location.pathname;
       document.querySelectorAll('.dropdown-item').forEach(function(el) {
@@ -105,6 +220,22 @@
         }
       });
     })();
+
+    // ── Floating Add Button ──
+    (function() {
+      var listPages = ['/resources', '/search', '/trash'];
+      var path = window.location.pathname;
+      if (listPages.some(function(p) { return path.indexOf(p) === 0; })) {
+        var fab = document.createElement('button');
+        fab.className = 'fab';
+        fab.innerHTML = '+';
+        fab.title = 'Add resource (n)';
+        fab.onclick = function() { window.location = '/add'; };
+        document.body.appendChild(fab);
+      }
+    })();
+
+
   </script>
   {% block scripts %}{% endblock %}
 </body>

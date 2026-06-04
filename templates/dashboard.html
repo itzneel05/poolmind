@@ -44,15 +44,56 @@
       <span class="stat-label">AI API</span>
       <span class="stat-badge {% if ai_status.api_running %}ok{% else %}warn{% endif %}">{% if ai_status.api_running %}freellmapi{% else %}not running{% endif %}</span>
     </div>
-    <div class="stat-card hud-card">
-      <span class="stat-value mono">{% if notion_status.configured %}[ON]{% else %}[OFF]{% endif %}</span>
-      <span class="stat-label">Notion sync</span>
-      <span class="stat-badge {% if notion_status.configured %}ok{% else %}warn{% endif %}">{% if notion_status.configured %}{{ notion_status.unsynced_count }} pending{% else %}not configured{% endif %}</span>
+    <div class="stat-card hud-card" onclick="toggleNotionPanel()" style="cursor:pointer">
+      <span class="stat-value mono" id="notion-status-badge">{% if notion_status.configured and notion_status.enabled %}[ON]{% elif notion_status.configured %}[PAUSED]{% else %}[OFF]{% endif %}</span>
+      <span class="stat-label">Notion sync <span style="font-size:10px;opacity:0.5">▼</span></span>
+      <span class="stat-badge {% if notion_status.configured and notion_status.enabled %}ok{% else %}warn{% endif %}">
+        {%- if notion_status.configured and notion_status.enabled %}{{ notion_status.unsynced_count }} pending
+        {%- elif notion_status.configured %}disabled
+        {%- else %}not configured{% endif -%}
+      </span>
     </div>
     <div class="stat-card hud-card">
       <span class="stat-value mono">{{ ai_status.total_calls }}</span>
       <span class="stat-label">AI calls</span>
       <span class="stat-badge {% if ai_status.needs_evolution > 0 %}warn{% else %}ok{% endif %}">{% if ai_status.needs_evolution > 0 %}{{ ai_status.needs_evolution }} need evolve{% else %}[OK]{% endif %}</span>
+    </div>
+  </div>
+
+  <div id="notion-panel" class="form-card" style="display:none;margin-bottom:24px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <h3 style="margin:0;font-size:var(--text-md);color:var(--text-primary);font-weight:var(--weight-semibold)">Notion Configuration</h3>
+      <span class="faint" style="font-size:var(--text-xs)"><a href="/maintenance/sync">Full sync page →</a></span>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px">
+      <div class="form-group" style="margin:0">
+        <label>Token</label>
+        <div style="display:flex;gap:6px">
+          <input type="password" id="notion-token" class="form-input" value="{{ notion_status.token_set and '********' or '' }}" placeholder="ntn_..." style="flex:1;font-family:var(--font-mono);font-size:var(--text-xs)">
+          <button class="btn btn-ghost" onclick="toggleTokenVis()" style="font-size:11px;padding:6px 10px">Show</button>
+        </div>
+      </div>
+      <div class="form-group" style="margin:0">
+        <label>Database ID</label>
+        <input type="text" id="notion-database" class="form-input mono" value="{{ notion_status.database_id }}" placeholder="notion database id" style="font-size:var(--text-xs)">
+      </div>
+      <div class="form-group" style="margin:0">
+        <label>Sync</label>
+        <div style="display:flex;gap:6px;align-items:center;padding-top:4px">
+          <label class="checkbox-label" style="margin:0">
+            <input type="checkbox" id="notion-enabled" {% if notion_status.enabled %}checked{% endif %}> Enabled
+          </label>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <button class="btn btn-secondary" onclick="saveNotionConfig()">Save config</button>
+      <button class="btn btn-ghost" onclick="testNotionConn()">Test connection</button>
+      <button class="btn btn-ghost" onclick="runNotionSync()">Sync now</button>
+      {% if notion_status.configured and notion_status.database_id %}
+      <a href="https://www.notion.so/{{ notion_status.database_id.replace('-', '') }}" target="_blank" class="btn btn-ghost">Open Notion DB ↗</a>
+      {% endif %}
+      <span id="notion-config-feedback" class="faint" style="font-size:var(--text-xs);margin-left:8px"></span>
     </div>
   </div>
 
@@ -72,6 +113,10 @@
     <a href="/resources/random" class="action-card"><span class="action-icon" data-lucide="shuffle"></span> Random gem</a>
     <a href="/resources/untouched" class="action-card"><span class="action-icon" data-lucide="book-open"></span> Untouched</a>
     <a href="/resources/recent" class="action-card"><span class="action-icon" data-lucide="clock"></span> Recent</a>
+    <a href="/maintenance/sync" class="action-card"><span class="action-icon" data-lucide="database"></span> Sync to Notion</a>
+    {% if notion_status.configured and notion_status.database_id %}
+    <a href="https://www.notion.so/{{ notion_status.database_id.replace('-', '') }}" target="_blank" class="action-card"><span class="action-icon" data-lucide="external-link"></span> Notion DB ↗</a>
+    {% endif %}
   </div>
 
   <div class="grid-2col">
@@ -131,4 +176,54 @@
   </div>
   {% endif %}
 </section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+var notionTokenVisible = false;
+function toggleNotionPanel() {
+  var p = document.getElementById('notion-panel');
+  p.style.display = p.style.display === 'none' ? 'block' : 'none';
+}
+function toggleTokenVis() {
+  var inp = document.getElementById('notion-token');
+  notionTokenVisible = !notionTokenVisible;
+  inp.type = notionTokenVisible ? 'text' : 'password';
+  event.target.textContent = notionTokenVisible ? 'Hide' : 'Show';
+}
+function saveNotionConfig() {
+  var token = document.getElementById('notion-token').value.trim();
+  var db = document.getElementById('notion-database').value.trim();
+  var enabled = document.getElementById('notion-enabled').checked;
+  var fb = document.getElementById('notion-config-feedback');
+  fb.textContent = 'Saving...';
+  var promises = [];
+  if (token && token !== '********') {
+    promises.push(fetch('/api/settings/env', {method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:'NOTION_TOKEN',value:token})}).then(function(r){return r.json()}));
+  }
+  if (db) {
+    promises.push(fetch('/api/settings/env', {method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:'NOTION_DATABASE',value:db})}).then(function(r){return r.json()}));
+  }
+  promises.push(fetch('/api/settings/env', {method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:'NOTION_SYNC_ENABLED',value:enabled?'true':'false'})}).then(function(r){return r.json()}));
+  Promise.all(promises).then(function() {
+    fb.textContent = 'Saved! Refreshing...';
+    setTimeout(function() { window.location.reload(); }, 1000);
+  }).catch(function(e) { fb.textContent = 'Error: ' + e.message; });
+}
+function testNotionConn() {
+  var fb = document.getElementById('notion-config-feedback');
+  fb.textContent = 'Testing...';
+  fetch('/api/sync/notion/status').then(function(r){return r.json()}).then(function(d) {
+    fb.textContent = d.configured ? 'Connected ✓' : 'Not configured — check token + db id';
+  }).catch(function(e) { fb.textContent = 'Error: ' + e.message; });
+}
+function runNotionSync() {
+  var fb = document.getElementById('notion-config-feedback');
+  fb.textContent = 'Syncing...';
+  fetch('/api/sync/notion/run', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({batch_size:10})}).then(function(r){return r.json()}).then(function(d) {
+    fb.textContent = 'Synced: ' + (d.synced||0) + ' ok, ' + (d.failed||0) + ' failed';
+    setTimeout(function() { window.location.reload(); }, 2000);
+  }).catch(function(e) { fb.textContent = 'Error: ' + e.message; });
+}
+</script>
 {% endblock %}

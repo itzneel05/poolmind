@@ -43,13 +43,15 @@
     </div>
 
     <div id="preview-area" style="display:none"></div>
-    <div id="progress-area" style="display:none"></div>
+    <div id="result-area" style="display:none"></div>
   </div>
 </section>
 {% endblock %}
 
 {% block scripts %}
 <script>
+var parsedEntries = null;
+
 function switchTab(name) {
   document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
   document.querySelectorAll('.tab-content').forEach(function(t) { t.style.display = 'none'; });
@@ -82,8 +84,6 @@ document.getElementById('upload-zone').addEventListener('drop', function(e) {
   };
   reader.readAsText(file);
 });
-
-var parsedEntries = null;
 
 async function previewIngest() {
   var text = document.getElementById('ingest-text').value.trim();
@@ -120,7 +120,7 @@ async function previewIngest() {
         '<td>' + e.entry_type + '</td><td>' + title + '</td><td>' + url + '</td><td class="mono">' + e.confidence + '</td></tr>';
     }
     html += '</tbody></table></div>';
-    html += '<div class="form-actions"><button class="btn btn-primary" onclick="runIngest()">Ingest selected</button></div>';
+    html += '<div class="form-actions"><button class="btn btn-primary" onclick="runIngest()" style="margin-top:8px">Ingest selected (' + s.total + ')</button></div>';
     preview.innerHTML = html;
   } catch(err) { preview.innerHTML = '<p class="fail">Error: ' + err.message + '</p>'; }
 }
@@ -129,30 +129,36 @@ function toggleAll(src) {
   document.querySelectorAll('.entry-check').forEach(function(c) { c.checked = src.checked; });
 }
 
-var ingestRunning = false;
+var ingesting = false;
 async function runIngest() {
-  if (ingestRunning) return;
-  if (!parsedEntries || parsedEntries.length === 0) { await previewIngest(); if (!parsedEntries) return; }
+  if (ingesting) return;
+
+  if (!parsedEntries || parsedEntries.length === 0) {
+    await previewIngest();
+    if (!parsedEntries || parsedEntries.length === 0) return;
+  }
 
   var selected = [];
   document.querySelectorAll('.entry-check:checked').forEach(function(c) {
     selected.push(parseInt(c.dataset.idx));
   });
-
   if (selected.length === 0) { toast('No entries selected', 'error'); return; }
 
-  ingestRunning = true;
+  ingesting = true;
   var btn = document.getElementById('ingest-btn');
-  btn.disabled = true; btn.textContent = 'Ingesting...';
+  btn.disabled = true;
+  btn.textContent = 'Ingesting ' + selected.length + '...';
 
-  var progress = document.getElementById('progress-area');
-  progress.style.display = 'block';
-  progress.innerHTML = '<div class="section-divider"><span>INGESTING</span></div><div id="ingest-log"></div>';
-
+  var resultArea = document.getElementById('result-area');
+  resultArea.style.display = 'block';
+  resultArea.innerHTML = '<div class="section-divider"><span>INGESTING</span></div><div id="ingest-log"></div>';
   var log = document.getElementById('ingest-log');
+  log.innerHTML = '<p class="faint">Background job running...</p>';
+
+  toastPersistent('ingest-progress', 'Starting ingestion of ' + selected.length + ' resources...', 'info');
 
   try {
-    var resp = await fetch('/api/ingest/run', {
+    var resp = await fetch('/api/ingest/start', {
       method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({
         entries: parsedEntries,
         selected: selected,
@@ -161,32 +167,76 @@ async function runIngest() {
         skip_obsidian: document.getElementById('no-obsidian').checked,
       })
     });
-    var data = await resp.json();
-    if (!resp.ok) { log.innerHTML = '<div class="step fail">Error: ' + data.error + '</div>'; return; }
-
-    var r = data.report;
-    var html = '';
-    r.failed_entries.forEach(function(f) {
-      html += '<div class="step fail">[FAIL] Line ' + f.line + ': ' + f.error + '</div>';
-    });
-    html += '<div class="section-divider"><span>DONE</span></div>' +
-      '<div class="result-stats">' +
-      '<span class="stat">[OK] Added: ' + r.added + '</span>' +
-      '<span class="stat warn">[=] Duplicates: ' + r.duplicates + '</span>' +
-      '<span class="stat warn">[?] Needs review: ' + r.needs_review + '</span>' +
-      '<span class="stat fail">[-] Failed: ' + r.failed + '</span>' +
-      '</div>';
-    if (r.needs_review_entries && r.needs_review_entries.length > 0) {
-      html += '<div class="section-divider"><span>NEEDS REVIEW</span></div>';
-      r.needs_review_entries.forEach(function(nr) {
-        html += '<div><a href="/resource/' + nr.id + '">' + nr.title + '</a></div>';
-      });
+    var startData = await resp.json();
+    if (!resp.ok) {
+      toastDismiss('ingest-progress');
+      log.innerHTML = '<div class="step fail">Error: ' + (startData.error || 'start_failed') + '</div>';
+      toast('Ingest start failed', 'error');
+      ingesting = false; btn.disabled = false; btn.textContent = 'Ingest All';
+      return;
     }
-    log.innerHTML = html;
-  } catch(err) { log.innerHTML = '<div class="step fail">Error: ' + err.message + '</div>'; }
 
-  ingestRunning = false;
-  btn.disabled = false; btn.textContent = 'Ingest All';
+    var jobId = startData.job_id;
+    var total = startData.total;
+
+    var done = false;
+    while (!done) {
+      await new Promise(function(r) { setTimeout(r, 1200); });
+      var sResp = await fetch('/api/ingest/status/' + jobId);
+      var s = await sResp.json();
+      if (!sResp.ok) { toastDismiss('ingest-progress'); throw new Error(s.error || 'status_failed'); }
+
+      if (s.status === 'not_found') {
+        toastDismiss('ingest-progress');
+        log.innerHTML = '<div class="step fail">Error: ingestion job not found</div>';
+        toast('Ingestion job lost', 'error');
+        done = true;
+        break;
+      }
+
+      var current = s.current || 0;
+      toastPersistent('ingest-progress', 'Ingested ' + current + '/' + total + ' resources...', 'info');
+
+      if (s.done) {
+        done = true;
+        toastDismiss('ingest-progress');
+
+        var html = '';
+        if (s.errors && s.errors.length > 0) {
+          s.errors.forEach(function(f) {
+            html += '<div class="step fail">[FAIL] ' + (f.title || '?') + ': ' + (f.error || 'unknown') + '</div>';
+          });
+        }
+
+        var report = s.report || {};
+        if (report.needs_review_entries && report.needs_review_entries.length > 0) {
+          html += '<div class="section-divider"><span>NEEDS REVIEW</span></div>';
+          report.needs_review_entries.forEach(function(nr) {
+            html += '<div><a href="/resource/' + nr.id + '">' + (nr.title || '?') + '</a></div>';
+          });
+        }
+
+        html += '<div class="section-divider"><span>DONE</span></div>' +
+          '<div class="result-stats">' +
+          '<span class="stat">[OK] Added: ' + (s.added || 0) + '</span>' +
+          '<span class="stat warn">[=] Duplicates: ' + (s.duplicates || 0) + '</span>' +
+          '<span class="stat warn">[?] Needs review: ' + (s.needs_review || 0) + '</span>' +
+          '<span class="stat fail">[-] Failed: ' + (s.failed || 0) + '</span>' +
+          '</div>';
+        log.innerHTML = html;
+
+        toast('Ingested: ' + (s.added || 0) + ' added, ' + (s.failed || 0) + ' failed', (s.failed || 0) > 0 ? 'warning' : 'success');
+      }
+    }
+  } catch(err) {
+    toastDismiss('ingest-progress');
+    log.innerHTML = '<div class="step fail">Error: ' + err.message + '</div>';
+    toast('Ingest error: ' + err.message, 'error');
+  }
+
+  ingesting = false;
+  btn.disabled = false;
+  btn.textContent = 'Ingest All';
 }
 </script>
 {% endblock %}

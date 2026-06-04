@@ -132,7 +132,129 @@ def _has_field_changed(resource: Resource, field: str) -> bool:
     return bool(getattr(resource, field, None))
 
 
+ENRICH_TIMEOUT = 120
+
+
 def submit_enrichment(resource: Resource):
-    """Queue a resource for background enrichment."""
-    _executor.submit(enrich_resource, resource)
-    logger.info("Queued background enrich for %s", resource.id)
+    """Queue a resource for background enrichment with a 2-minute timeout."""
+    _executor.submit(_enrich_with_timeout, resource)
+    logger.info(
+        "Queued background enrich for %s (timeout: %ds)", resource.id, ENRICH_TIMEOUT
+    )
+
+
+def _enrich_with_timeout(resource: Resource):
+    """Run enrich_resource but enforce a total timeout. If exceeded, mark as failed and drop."""
+    import threading
+
+    result_box = []
+    error_box = []
+
+    def _run():
+        try:
+            enrich_resource(resource)
+            result_box.append(True)
+        except Exception as e:
+            error_box.append(e)
+
+    t = threading.Thread(target=_run, daemon=True)
+    t.start()
+    t.join(ENRICH_TIMEOUT)
+
+    if t.is_alive():
+        logger.warning(
+            "Enrichment timed out for %s after %ds — dropping",
+            resource.id,
+            ENRICH_TIMEOUT,
+        )
+        try:
+            from app import db
+
+            db._set_enrichment_status(resource.id, "failed")
+        except Exception:
+            pass
+        return
+
+    if error_box:
+        logger.error("Enrichment failed for %s: %s", resource.id, error_box[0])
+
+
+# ── Background Ingestion ──
+import uuid as _uuid
+import threading as _threading
+
+_ingestion_jobs: dict = {}
+_ingestion_lock = _threading.Lock()
+
+
+def start_ingestion(
+    entries,
+    ai_disabled: bool = False,
+    skip_notion_sync: bool = False,
+    skip_obsidian: bool = False,
+) -> str:
+    from app.ingest_router import ingest_entries, build_ingestion_report
+
+    job_id = _uuid.uuid4().hex[:12]
+    total = len(entries)
+
+    with _ingestion_lock:
+        _ingestion_jobs[job_id] = {
+            "status": "running",
+            "total": total,
+            "current": 0,
+            "added": 0,
+            "duplicates": 0,
+            "failed": 0,
+            "needs_review": 0,
+            "errors": [],
+            "done": False,
+        }
+
+    def _run():
+        def _on_progress(current, total, result):
+            with _ingestion_lock:
+                job = _ingestion_jobs.get(job_id)
+                if not job:
+                    return
+                job["current"] = current
+                if result.action == "added":
+                    job["added"] += 1
+                elif result.action == "duplicate":
+                    job["duplicates"] += 1
+                elif result.error:
+                    job["failed"] += 1
+                    job["errors"].append(
+                        {"title": result.entry.title or "", "error": result.error}
+                    )
+
+        results = ingest_entries(
+            entries=entries,
+            ai_disabled=ai_disabled,
+            skip_notion_sync=skip_notion_sync,
+            skip_obsidian=skip_obsidian,
+            on_progress=_on_progress,
+        )
+        report = build_ingestion_report(results)
+
+        with _ingestion_lock:
+            job = _ingestion_jobs.get(job_id)
+            if job:
+                job["status"] = "complete"
+                job["done"] = True
+                job["added"] = report["added"]
+                job["duplicates"] = report["duplicates"]
+                job["failed"] = report["failed"]
+                job["needs_review"] = report["needs_review"]
+                job["report"] = report
+
+    _executor.submit(_run)
+    return job_id
+
+
+def get_ingestion_status(job_id: str) -> dict:
+    with _ingestion_lock:
+        job = _ingestion_jobs.get(job_id)
+        if not job:
+            return {"status": "not_found", "done": True}
+        return dict(job)

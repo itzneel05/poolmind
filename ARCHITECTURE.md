@@ -590,7 +590,7 @@ Previous versions are stored in `prompts/backups/`. The API exposes:
 | Blueprint | File | Prefix | Endpoints |
 |-----------|------|--------|-----------|
 | `api_resources` | `resources.py` | `/api` | 14 |
-| `api_ingest` | `ingest.py` | `/api/ingest` | 3 |
+| `api_ingest` | `ingest.py` | `/api/ingest` | 5 |
 | `api_search` | `search.py` | `/api/search` | 2 |
 | `api_browse` | `browse.py` | `/api/resources` | 4 |
 | `api_intel` | `intelligence.py` | `/api` | 9 |
@@ -935,7 +935,7 @@ poolmind/
 │   ├── api/                      # REST API blueprints
 │   │   ├── __init__.py           # register_blueprints() hub
 │   │   ├── resources.py          # CRUD + resource actions (14 endpoints)
-│   │   ├── ingest.py             # Parse + run + SSE streaming (3 endpoints)
+│   │   ├── ingest.py             # Parse + run + start + status (5 endpoints)
 │   │   ├── search.py             # Keyword + NL search (2 endpoints)
 │   │   ├── browse.py             # Random, untouched, recent, by-state (4 endpoints)
 │   │   ├── intelligence.py       # Paths, stacks, gap analysis (9 endpoints)

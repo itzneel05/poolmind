@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 def _enforce_summary(
     extracted: dict, title: str, url: str = "", body_text: str = ""
 ) -> dict:
-    summary = extracted.get("summary", "").strip()
+    summary = (extracted.get("summary") or "").strip()
     if len(summary) >= 80:
         return extracted
     try:
@@ -49,7 +49,7 @@ def _enforce_summary(
     except Exception:
         pass
 
-    if len(extracted.get("summary", "").strip()) < 80:
+    if len((extracted.get("summary") or "").strip()) < 80:
         domain = extracted.get("domain", "general")
         type_ = extracted.get("type", "resource")
         fallback = f"A {type_} in the {domain} domain"
@@ -192,8 +192,8 @@ def add_from_url(
     extracted["ai_confidence"] = ai_confidence
     extracted["ai_disabled"] = ai_disabled
     extracted["added_by"] = "user"
-    extracted["enrichment_status"] = "pending" if needs_ai else "complete"
-    extracted["ai_enriched"] = not needs_ai
+    extracted["enrichment_status"] = "pending" if use_ai else "complete"
+    extracted["ai_enriched"] = not use_ai
 
     extracted = _enforce_summary(
         extracted, title=extracted.get("title", ""), url=url, body_text=body_text
@@ -213,7 +213,7 @@ def add_from_url(
     db.insert_resource(resource)
     logger.info("Saved resource %s to DB (fast path)", resource.id)
 
-    if needs_ai:
+    if use_ai:
         from app.background import submit_enrichment
 
         submit_enrichment(resource)

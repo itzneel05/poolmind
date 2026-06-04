@@ -559,10 +559,120 @@ hr.divider { border: none; border-top: 1px solid var(--border-faint); margin: va
   background-size: 200% 100%; animation: shimmer 1.5s infinite;
 }
 
-/* ── Misc ── */
+/* ── Skeleton Screens ── */
+.skeleton { background: linear-gradient(90deg, var(--bg-hover) 25%, var(--bg-active) 50%, var(--bg-hover) 75%); background-size: 200px 100%; animation: shimmer 1.4s ease-in-out infinite; display: inline-block; vertical-align: middle; }
+.skeleton-row { display: flex; gap: var(--space-3); padding: var(--space-2) var(--space-3); align-items: center; }
+.skeleton-cell { height: 16px; border-radius: 4px; }
+.skeleton-cell-sm { width: 60px; }
+.skeleton-cell-md { width: 120px; }
+.skeleton-cell-lg { width: 200px; }
+.skeleton-cell-xl { width: 300px; }
+.skeleton-chip { width: 50px; height: 20px; border-radius: 12px; }
+.skeleton-badge { width: 40px; height: 14px; border-radius: 2px; }
 
-select { -webkit-appearance: none; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7795' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 36px; }
-::-webkit-scrollbar { width: 8px; }
-::-webkit-scrollbar-track { background: var(--bg-base); }
-::-webkit-scrollbar-thumb { background: var(--border-soft); border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: var(--border-strong); }
+/* ── Pagination ── */
+
+.pagination { display: flex; gap: var(--space-1); align-items: center; justify-content: center; padding: var(--space-4) 0; }
+.pagination a, .pagination span { display: inline-flex; align-items: center; justify-content: center; min-width: 32px; height: 32px; padding: 0 var(--space-1); border-radius: var(--radius-sm); font-size: var(--text-sm); font-family: var(--font-mono); color: var(--text-secondary); text-decoration: none; transition: all 100ms; }
+.pagination a:hover { background: var(--bg-hover); color: var(--text-primary); }
+.pagination .active { background: var(--accent); color: #fff; }
+.pagination .disabled { opacity: 0.3; pointer-events: none; }
+.pagination .gap { color: var(--text-tertiary); }
+
+/* ── Ingest Progress ── */
+#progress-area { max-height: 500px; overflow-y: auto; }
+#ingest-log { max-height: 400px; overflow-y: auto; font-size: var(--text-sm); }
+#ingest-log .step { padding: 4px 8px; margin: 2px 0; border-radius: var(--radius-sm); }
+#ingest-log .step.dup { background: rgba(251, 191, 36, 0.1); color: var(--warning); }
+#ingest-log .step.ok { background: rgba(74, 222, 128, 0.08); color: var(--success); }
+#ingest-log .step.fail { background: rgba(248, 113, 113, 0.1); color: var(--danger); }
+
+/* ── Smooth Transitions ── */
+a, button, .btn, .nav-item, .dropdown-item, .clickable-row, .state-badge, .type-chip, .card, .filter-select, .form-input, input, textarea, select, .tab, .chip, .skeleton {
+  transition: all 120ms ease;
+}
+.clickable-row:hover { background: var(--bg-hover); }
+.clickable-row:active { background: var(--bg-active); transform: scale(0.998); }
+
+/* ── Focus ring ── */
+*:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
+select:focus-visible, input:focus-visible, textarea:focus-visible, .form-input:focus-visible {
+  border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+/* ── Sticky Table Headers ── */
+.data-table { position: relative; }
+.data-table thead { position: sticky; top: 0; z-index: 2; }
+.data-table thead th { background: var(--bg-surface); position: sticky; top: 0; z-index: 2; box-shadow: inset 0 -1px 0 var(--border-faint); }
+
+/* ── Toast system (stacked, animated, progress bar) ── */
+.toast-container { position: fixed; bottom: 24px; right: 24px; z-index: 9999; display: flex; flex-direction: column-reverse; gap: 8px; pointer-events: none; }
+.toast-container-progress { position: fixed; bottom: 24px; left: 24px; z-index: 9999; display: flex; flex-direction: column-reverse; gap: 8px; pointer-events: none; max-width: 360px; }
+.toast { pointer-events: auto; position: relative; min-width: 280px; max-width: 420px; padding: 12px 16px 12px 40px; border-radius: 8px; font-size: var(--text-sm); font-family: var(--font-sans); line-height: 1.4; color: var(--text-primary); background: var(--bg-elevated); border: 1px solid var(--border-soft); box-shadow: 0 8px 32px rgba(0,0,0,0.35); animation: toastSlideIn 250ms ease; overflow: hidden; }
+.toast::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; border-radius: 3px 0 0 3px; }
+.toast::after { content: ''; position: absolute; bottom: 0; left: 0; height: 2px; background: var(--border-soft); animation: toastTimer 4s linear forwards; }
+.toast-success::before { background: var(--success); }
+.toast-error::before { background: var(--danger); }
+.toast-warning::before { background: var(--warning); }
+.toast-info::before { background: var(--info); }
+.toast-success::after { background: var(--success); }
+.toast-error::after { background: var(--danger); }
+.toast-warning::after { background: var(--warning); }
+.toast-info::after { background: var(--info); }
+.toast-success { border-left-color: var(--success); }
+.toast-error { border-left-color: var(--danger); }
+.toast-warning { border-left-color: var(--warning); }
+.toast-info { border-left-color: var(--info); }
+.toast-undo { padding: 10px 16px; display: flex; align-items: center; gap: 12px; border-left-color: var(--info); }
+.toast-undo::before { background: var(--info); }
+.toast-undo::after { background: var(--info); }
+.toast-undo-btn { background: var(--accent); color: #fff; border: none; padding: 4px 12px; border-radius: 4px; font-size: var(--text-xs); font-family: var(--font-sans); cursor: pointer; white-space: nowrap; }
+.toast-undo-btn:hover { background: var(--accent-hover); }
+.toast-close { position: absolute; top: 8px; right: 8px; background: none; border: none; color: var(--text-tertiary); font-size: 16px; line-height: 1; cursor: pointer; padding: 0 4px; border-radius: 2px; }
+.toast-close:hover { color: var(--text-primary); background: var(--bg-hover); }
+.toast-persist::after { display: none; }
+.toast-persist { padding-right: 16px; }
+
+@keyframes toastSlideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+@keyframes toastTimer { from { width: 100%; } to { width: 0%; } }
+
+.toast-removing { animation: toastSlideOut 200ms ease forwards; }
+@keyframes toastSlideOut { from { transform: translateX(0); opacity: 1; } to { transform: translateX(100%); opacity: 0; } }
+
+/* ── Floating Action Button ── */
+.fab { position: fixed; bottom: 24px; left: 24px; width: 48px; height: 48px; border-radius: 50%; background: var(--accent); color: #fff; border: none; font-size: 22px; cursor: pointer; box-shadow: 0 4px 16px rgba(77,159,255,0.35); display: flex; align-items: center; justify-content: center; z-index: 100; transition: all 200ms ease; }
+.fab:hover { background: var(--accent-hover); transform: scale(1.08); box-shadow: 0 6px 24px rgba(77,159,255,0.5); }
+.fab:active { transform: scale(0.95); }
+
+/* ── Loading Overlay ── */
+.loading-overlay { position: fixed; inset: 0; background: rgba(10,14,26,0.6); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 9998; animation: fadeIn 150ms ease; }
+.loading-spinner { width: 36px; height: 36px; border: 3px solid var(--border-soft); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* ── Keyboard Shortcuts Modal ── */
+.shortcuts-modal { position: fixed; inset: 0; background: rgba(10,14,26,0.7); backdrop-filter: blur(6px); display: flex; align-items: center; justify-content: center; z-index: 10000; animation: fadeIn 150ms ease; }
+.shortcuts-panel { background: var(--bg-elevated); border: 1px solid var(--border-soft); border-radius: 12px; padding: 24px 32px; max-width: 480px; width: 90%; box-shadow: 0 16px 64px rgba(0,0,0,0.5); }
+.shortcuts-panel h2 { margin-bottom: 16px; font-size: var(--text-lg); }
+.shortcuts-grid { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; font-size: var(--text-sm); }
+.shortcuts-grid kbd { display: inline-block; padding: 2px 8px; font-family: var(--font-mono); font-size: var(--text-xs); background: var(--bg-surface); border: 1px solid var(--border-soft); border-radius: 4px; color: var(--text-secondary); min-width: 28px; text-align: center; }
+.shortcuts-grid span { color: var(--text-secondary); line-height: 1.8; }
+.shortcuts-close { margin-top: 16px; text-align: right; font-size: var(--text-xs); color: var(--text-tertiary); }
+
+/* ── Animated Dropdowns ── */
+.nav-dropdown .dropdown-menu { display: none; position: absolute; top: 100%; left: 0; min-width: 180px; background: var(--bg-elevated); border: 1px solid var(--border-soft); border-radius: 8px; padding: 4px; box-shadow: 0 8px 32px rgba(0,0,0,0.4); z-index: 50; }
+.nav-dropdown.open .dropdown-menu { display: block; animation: dropIn 120ms ease; }
+@keyframes dropIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+.dropdown-item { display: block; padding: 6px 12px; border-radius: 4px; font-size: var(--text-sm); color: var(--text-secondary); text-decoration: none; }
+.dropdown-item:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+/* ── Empty States ── */
+.empty-state { text-align: center; padding: 48px 24px; }
+.empty-state .empty-icon { width: 48px; height: 48px; margin: 0 auto 16px; color: var(--text-tertiary); }
+.empty-state h2 { font-size: var(--text-md); font-weight: var(--weight-semibold); margin-bottom: 8px; }
+.empty-state p { color: var(--text-tertiary); font-size: var(--text-sm); margin-bottom: 16px; }
+
+/* ── Skeleton shimmer ── */
+@keyframes shimmer { 0% { background-position: -200px 0; } 100% { background-position: calc(200px + 100%) 0; } }
+
+/* ── Misc ── */

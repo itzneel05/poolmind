@@ -43,12 +43,12 @@ cp .env.example .env
 | Variable | Required | Default | Purpose |
 |----------|----------|---------|---------|
 | `NOTION_TOKEN` | No | — | Notion integration token |
-| `NOTION_DATABASE_ID` | No | — | Notion database ID |
+| `NOTION_DATABASE` | No | — | Notion database ID |
 | `OBSIDIAN_VAULT_PATH` | No | `vault` | Path to Obsidian vault |
 | `AI_ENABLED` | No | `true` | Enable/disable AI enrichment |
 | `AI_CONFIDENCE_THRESHOLD` | No | `70` | Heuristic must score >= this to skip AI |
-| `FREELLMAPI_URL` | No | `http://localhost:11434` | AI endpoint |
-| `FREELLMAPI_MODEL` | No | `llama3` | AI model |
+| `FREELLMAPI_URL` | No | `http://localhost:3001` | AI proxy endpoint |
+| `FREELLMAPI_MODEL` | No | `auto` | AI model (or pin to e.g. `gemini-2.5-flash`) |
 | `GITHUB_TOKEN` | No | — | GitHub API (higher rate limits) |
 | `LINK_CHECK_INTERVAL_DAYS` | No | `90` | Days before link re-check |
 
@@ -431,9 +431,10 @@ poolmind exposes a full REST API with ~60 endpoints under `/api/`. All return JS
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/api/ingest/parse` | Parse text `{"text"}` |
-| POST | `/api/ingest/run` | Run ingestion |
-| POST | `/api/ingest/run/stream` | SSE streaming |
+| POST | `/api/ingest/parse` | Parse text `{"text"}` → detected entries |
+| POST | `/api/ingest/run` | Sync ingestion (waits for all to finish) |
+| POST | `/api/ingest/start` | Start background ingestion → `job_id` |
+| GET | `/api/ingest/status/<job_id>` | Poll background job progress (`current`/`total`/`done`) |
 
 ### Intelligence
 
@@ -678,10 +679,11 @@ Each note includes:
 
 One-way sync: local SQLite -> Notion. Notion is the dashboard — local is source of truth.
 
-1. Create integration: https://www.notion.so/my-integrations
-2. Share your database with the integration
-3. Set `NOTION_TOKEN` and `NOTION_DATABASE_ID` in `.env`
-4. Resources sync on add, or manually via `pool sync-notion`
+1. Duplicate the pre-configured database template: [Poolmind Resource Database](https://marsh-rugby-3bd.notion.site/b65954654aae82a5b8110192cf9b7ce6?v=efc954654aae827985c6081721cb2b32)
+2. Create integration: https://www.notion.so/my-integrations
+3. Share your duplicated database with the integration
+4. Set `NOTION_TOKEN` and `NOTION_DATABASE` in `.env`
+5. Resources sync on add, or manually via `pool sync-notion`
 
 Property mapping: `config/notion.yaml` (28 mapped properties).
 
@@ -700,7 +702,7 @@ cd freellmapi && npm install && npm start
 Set in `.env`:
 ```
 FREELLMAPI_URL=http://localhost:3001
-FREELLMAPI_MODEL=llama3
+FREELLMAPI_MODEL=auto
 ```
 
 ### Option B: OpenAI (cloud, paid)

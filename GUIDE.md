@@ -125,7 +125,9 @@ pool ingest -f urls.txt
 1. Click **"+ Add" > "Bulk ingest"**
 2. Paste multiple URLs (one per line) or upload a file
 3. Click **"Preview"** to see what was parsed
-4. Check the entries you want, click **"Ingest"**
+4. Check the entries you want, click **"Ingest All"**
+5. A progress toast appears at the bottom-right updating in real time: "Ingested 3/5 resources..."
+6. When done, the toast shows the final count and results appear below
 
 poolmind automatically detects the input format:
 ```
@@ -154,7 +156,7 @@ When you open `http://127.0.0.1:5000`, you'll see:
 | Section | What it shows |
 |---------|---------------|
 | **Stats** | Total resources, domains covered, dead links, low-confidence items |
-| **Services** | AI API status (`[ONLINE]`/`[OFFLINE]`), Notion sync status, AI call count |
+| **Services** | AI API status (`[ONLINE]`/`[OFFLINE]`), Notion sync status (click to expand config panel), AI call count |
 | **Gem of the Day** | A random resource you might have forgotten about |
 | **Quick Actions** | Links to add, random gem, untouched, recent |
 | **By Domain** | How many resources per security domain |
@@ -192,6 +194,8 @@ Click any resource to see its **detail page**. It has two columns:
 | **State** | Dropdown: saved → skimmed → studied → mastered → applied |
 | **Tags** | Type a tag and click "+" to add it |
 | **Notes** | Write notes and click "Save note" |
+| **Sync to Notion** | One-click push the resource to your Notion database (if configured) |
+| **Open in Notion** | Opens the Notion page directly in a new tab (appears after sync) |
 | **Mark used** | Increments the usage counter |
 | **Correct AI field** | Opens a modal to fix any AI-generated field |
 | **Trash** | Moves resource to trash bin (restorable, with undo toast) |
@@ -202,6 +206,20 @@ The **Search** page has two tabs:
 
 - **Keyword** — Type a query, optionally filter by domain and type. Results show relevance scores
 - **Natural Language** — Type a question like "find short beginner resources about SSRF" and AI finds relevant results
+
+### Keyboard Shortcuts
+
+poolmind has global keyboard shortcuts — press `?` to see the help modal:
+
+| Shortcut | Action |
+|----------|--------|
+| `?` | Show/hide keyboard shortcuts help |
+| `n` | Go to add resource page |
+| `/` | Focus search bar |
+| `g` `d` | Go to dashboard |
+| `g` `r` | Go to resources list |
+| `g` `t` | Go to trash |
+| `g` `s` | Go to settings |
 
 ---
 
@@ -272,6 +290,8 @@ Every deleted resource goes to the **Trash** — nothing is permanently lost unt
 2. See sync status and history
 3. Click **"Sync now"** to push unsynced resources to Notion
 
+> **Tip:** A ready-made Notion database template is available at the [Poolmind Resource Database](https://marsh-rugby-3bd.notion.site/b65954654aae82a5b8110192cf9b7ce6?v=efc954654aae827985c6081721cb2b32). Duplicate it instead of creating one from scratch — all properties and views are pre-configured.
+
 ---
 
 ## Settings
@@ -289,10 +309,11 @@ To edit any setting, click the "Edit" button next to it. Environment variable ch
 
 In the **Notion Sync** section of Settings:
 
-1. Click **"Set"** next to `NOTION_TOKEN` and paste your Notion integration token
-2. Click **"Edit"** next to `NOTION_DATABASE` and enter your database ID
-3. Toggle `NOTION_SYNC_ENABLED` to `true`
-4. Click **"Test connection"** to verify everything works
+1. Duplicate the pre-configured database template: [Poolmind Resource Database](https://marsh-rugby-3bd.notion.site/b65954654aae82a5b8110192cf9b7ce6?v=efc954654aae827985c6081721cb2b32)
+2. Click **"Set"** next to `NOTION_TOKEN` and paste your Notion integration token
+3. Click **"Edit"** next to `NOTION_DATABASE` and enter your duplicated database ID
+4. Toggle `NOTION_SYNC_ENABLED` to `true`
+5. Click **"Test connection"** to verify everything works
 
 ### Taxonomy
 

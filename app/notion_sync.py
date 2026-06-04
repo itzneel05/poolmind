@@ -29,9 +29,9 @@ def _get_token() -> str:
 
 
 def _get_database_id() -> str:
-    db_id = os.getenv("NOTION_DATABASE_ID", "")
+    db_id = os.getenv("NOTION_DATABASE_ID", "") or os.getenv("NOTION_DATABASE", "")
     if not db_id:
-        raise ValueError("NOTION_DATABASE_ID not set in environment")
+        raise ValueError("NOTION_DATABASE not set in environment")
     return db_id
 
 
@@ -142,13 +142,32 @@ def get_sync_status() -> dict:
     database_id = os.getenv("NOTION_DATABASE", "") or os.getenv(
         "NOTION_DATABASE_ID", ""
     )
+    enabled = os.getenv("NOTION_SYNC_ENABLED", "true").lower() == "true"
     unsynced_count = len(db.get_unsynced_notion(limit=9999))
     return {
         "configured": bool(token and database_id),
         "has_token": bool(token),
         "has_database": bool(database_id),
+        "enabled": enabled,
         "unsynced_count": unsynced_count,
+        "database_id": database_id,
+        "token_set": bool(token),
     }
+
+
+def notion_page_url(page_id: str) -> Optional[str]:
+    """Build a Notion page URL from a Notion page UUID."""
+    if not page_id:
+        return None
+    return f"https://www.notion.so/{page_id.replace('-', '')}"
+
+
+def notion_database_url() -> Optional[str]:
+    """Build a Notion database URL from the configured database ID."""
+    db_id = os.getenv("NOTION_DATABASE", "") or os.getenv("NOTION_DATABASE_ID", "")
+    if not db_id:
+        return None
+    return f"https://www.notion.so/{db_id.replace('-', '')}"
 
 
 def get_sync_log(limit: int = 50) -> list:

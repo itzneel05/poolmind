@@ -17,7 +17,7 @@
 - **Duplicate detection** — fuzzy title matching via rapidfuzz
 - **Dead link checker** — HEAD-check stale resources, capture Wayback Machine URLs
 - **Obsidian sync** — each resource becomes a markdown note with YAML frontmatter + Dataview queries
-- **Notion sync** — one-way push to a Notion database dashboard
+- **Notion sync** — one-way push to a Notion database dashboard ([ready-made template](https://marsh-rugby-3bd.notion.site/b65954654aae82a5b8110192cf9b7ce6?v=efc954654aae827985c6081721cb2b32) — duplicate & go)
 - **Export** — Anki CSV decks, static HTML site, D3.js interactive graph, Obsidian wiki-link graph
 - **Self-adapting prompts** — AI prompts evolve based on success rates and user corrections
 - **REST API** — 50+ JSON endpoints for every operation
@@ -69,5 +69,6 @@ See [SETUP.md](SETUP.md) for the full walkthrough.
 - [ARCHITECTURE.md](ARCHITECTURE.md) — how it all fits together
 
 ---
+
 
 > **Disclaimer:** This is a personal project built for my own learning and experimentation, not a product. It exists as a portfolio piece and a practical tool for organizing cybersecurity research. There is no warranty, no SLA, no support commitment, and no guarantee that the code is secure, correct, or suitable for any purpose. If you choose to run it yourself, that's your call — you're responsible for your own data and your own security.

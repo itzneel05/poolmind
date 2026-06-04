@@ -124,7 +124,7 @@ def _call_llm(prompt: str, system: str = "", task: str = "generic") -> Optional[
                     "response_format": {"type": "json_object"},
                     "temperature": 0.2,
                 },
-                timeout=120,
+                timeout=30,
             )
             resp.raise_for_status()
             raw_text = resp.json()["choices"][0]["message"]["content"]

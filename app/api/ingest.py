@@ -144,3 +144,53 @@ def ingest_run_stream():
         yield f"data: {json.dumps({'complete': True, 'report': report})}\n\n"
 
     return Response(generate(), mimetype="text/event-stream")
+
+
+@ingest_bp.route("/start", methods=["POST"])
+def ingest_start():
+    """Start background ingestion, returns job_id immediately."""
+    from app.background import start_ingestion
+
+    data = request.get_json(force=True)
+    entries_data = data.get("entries", [])
+    selected = data.get("selected", None)
+    ai_disabled = data.get("ai_disabled", False)
+    skip_notion_sync = data.get("skip_notion_sync", False)
+    skip_obsidian = data.get("skip_obsidian", False)
+
+    from app.bulk_parser import ParsedEntry
+
+    entries = []
+    for ed in entries_data:
+        entries.append(
+            ParsedEntry(
+                raw_line=ed.get("raw_line", ""),
+                entry_type=ed.get("entry_type", "url_only"),
+                url=ed.get("url"),
+                title=ed.get("title"),
+                notes=ed.get("notes"),
+                confidence=ed.get("confidence", 1.0),
+                line_number=ed.get("line_number", 0),
+            )
+        )
+
+    if selected is not None:
+        entries = [e for i, e in enumerate(entries) if i in selected]
+
+    job_id = start_ingestion(
+        entries=entries,
+        ai_disabled=ai_disabled,
+        skip_notion_sync=skip_notion_sync,
+        skip_obsidian=skip_obsidian,
+    )
+
+    return jsonify({"job_id": job_id, "total": len(entries)})
+
+
+@ingest_bp.route("/status/<job_id>", methods=["GET"])
+def ingest_status(job_id: str):
+    """Poll ingestion job status."""
+    from app.background import get_ingestion_status
+
+    status = get_ingestion_status(job_id)
+    return jsonify(status)
